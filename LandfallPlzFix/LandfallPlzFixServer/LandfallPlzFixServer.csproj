@@ -7,8 +7,12 @@
     <Version>1.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
+    <NoWarn>MSB3277</NoWarn>
 
-    <OutputPath>$(SolutionDir)..\Server\BepInEx\plugins</OutputPath>
+    <ServerDirectory>$(SolutionDir)..\Server\</ServerDirectory>
+    <ServerManagedFolder>$(ServerDirectory)TABG_Data\Managed\</ServerManagedFolder>
+
+    <OutputPath>$(ServerDirectory)BepInEx\plugins</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <DebugType>embedded</DebugType>
@@ -20,6 +24,10 @@
     <PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.22" IncludeAssets="compile" />
     <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(ServerManagedFolder)Assembly-CSharp.dll" Private="false"/>
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
