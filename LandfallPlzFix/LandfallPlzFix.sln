@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LandfallPlzFixClient", "Lan
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LandfallPlzFixServer", "LandfallPlzFixServer\LandfallPlzFixServer.csproj", "{F012ACE9-8CBC-49EC-ADFF-FEC1A351E7DA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TokenAuthFixer", "TokenAuthFixer\TokenAuthFixer.csproj", "{3BEBFE2C-E570-47CE-BC42-86EDD3AF40FA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{F012ACE9-8CBC-49EC-ADFF-FEC1A351E7DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F012ACE9-8CBC-49EC-ADFF-FEC1A351E7DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F012ACE9-8CBC-49EC-ADFF-FEC1A351E7DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BEBFE2C-E570-47CE-BC42-86EDD3AF40FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BEBFE2C-E570-47CE-BC42-86EDD3AF40FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BEBFE2C-E570-47CE-BC42-86EDD3AF40FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BEBFE2C-E570-47CE-BC42-86EDD3AF40FA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
