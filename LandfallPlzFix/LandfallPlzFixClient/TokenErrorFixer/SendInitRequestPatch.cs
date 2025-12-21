@@ -8,6 +8,9 @@ namespace LandfallPlzFixClient.TokenErrorFixer;
 /// This is a hacky way to resolve the Token Authentication Error.
 /// A proper fix would involve refactoring the EOSSDKComponent to handle token expiration and renewal.
 /// I am not doing that here just because this is a BepInEx mod so it would be annoying with Harmony.
+///
+/// Epics Docs on the topic:
+/// https://dev.epicgames.com/docs/epic-games-store/testing-guide#connect-interface-login-and-access-token-renewal
 /// </summary>
 [HarmonyPatch(typeof(ServerConnector), nameof(ServerConnector.SendInitRequest))]
 public static class SendInitRequestPatch {
