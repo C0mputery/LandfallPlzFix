@@ -1,3 +1,4 @@
+using System;
 using Epic.OnlineServices;
 using HarmonyLib;
 using Landfall.Network;
@@ -23,7 +24,9 @@ public static class SendInitRequestPatch {
     [HarmonyPrefix]
     public static bool SendInitRequestPatchPrefix(ref ServerConnector __instance) {
         Result userToken = EOSSDKComponent.GetUserToken(out _); // Check the user token status, the SendInitRequest method does this again, but this is again just a Harmony 
-        if (userToken != Result.AuthExpired) {
+        
+        Plugin.Logger.LogInfo($"User token check returned {Enum.GetName(typeof(Result), userToken)}");
+        if (userToken != Result.NotFound) {
             Plugin.Logger.LogInfo($"User token valid, sending init request as normal.");
             
             // If our token is not expired, continue as normal.
