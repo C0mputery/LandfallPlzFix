@@ -13,13 +13,19 @@ namespace TokenAuthFixer;
 /// Epics Docs on the topic:
 /// https://dev.epicgames.com/docs/epic-games-store/testing-guide#connect-interface-login-and-access-token-renewal
 /// </summary>
-[HarmonyPatch(typeof(EOSSDKComponent), nameof(EOSSDKComponent.Awake))]
+[HarmonyPatch(typeof(EOSSDKComponent))]
 public static class EOSSDKComponentPatch {
+    /// <summary>
+    /// Stops the code from trying to log in multiple times simultaneously, probably unnecessary :P
+    /// </summary>
+    public static bool LoginInProgress = false;
+    
     /// <summary>
     /// This prefix patch checks if the user token whenever the main menu loads.
     /// If it's expired it tries to log in again.
     /// </summary>
     [HarmonyPrefix]
+    [HarmonyPatch(nameof(EOSSDKComponent.Awake))]
     public static void AwakePrefix() {
         if (EOSSDKComponent.s_PlatformInterface == null) { return; } // EOS not initialized yet
         
@@ -36,8 +42,12 @@ public static class EOSSDKComponentPatch {
             }
         };
         
-        EOSSDKComponent.s_PlatformInterface.GetConnectInterface().Login(ref loginOptions, new object(), delegate(ref LoginCallbackInfo loginCallbackInfo) {
+        if (LoginInProgress) { Plugin.Logger.LogInfo("Login already in progress, skipping re-login attempt."); return; }
+        
+        LoginInProgress = true;
+        EOSSDKComponent.s_PlatformInterface.GetConnectInterface().Login(ref loginOptions, null, delegate(ref LoginCallbackInfo loginCallbackInfo) {
             Plugin.Logger.LogInfo($"Re-login attempt returned {Enum.GetName(typeof(Result), loginCallbackInfo.ResultCode)}");
+            LoginInProgress = false;
         });
     }
 }
