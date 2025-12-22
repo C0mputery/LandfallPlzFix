@@ -71,10 +71,10 @@ public static class GameSettingsPatch {
         __instance.BombTime = configFile.Bind("Bomb", "BombTime", 30f, "Bomb detonation time").Value;
         __instance.BombDefuseTime = configFile.Bind("Bomb", "BombDefuseTime", 5f, "Bomb defuse time").Value;
         __instance.RoundTime = configFile.Bind("Bomb", "RoundTime", 90, "Bomb round time").Value;
-        
+
         // Misc
         __instance.DEBUG_DEATHMATCH = configFile.Bind("Misc", "DEBUG_DEATHMATCH", false, "Forces automatic respawns").Value;
-        
+
         // Security
         __instance.UseAntiCheat = configFile.Bind("Security", "UseAntiCheat", false, "I do not think this functions properly on the community servers").Value;
         __instance.UseAntiCheatLogging = configFile.Bind("Security", "UseAntiCheatLogging", false, "Tries to Log a bunch of stuff to the anti-cheat, also likely does not work on community servers").Value;
