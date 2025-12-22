@@ -32,7 +32,6 @@ public static class GameSettingsPatch {
         __instance.Password = configFile.Bind("Server", "Password", "", "Password, leave blank for no password").Value;
         
         // Server List
-        __instance.ServerBrowserIP = configFile.Bind("Server List", "ServerBrowserIP", "20.234.109.246", "The IP for the server list API. Kinda wild they are just using a IP address and not a domain name D:").Value;
         __instance.ServerName = configFile.Bind("Server List", "ServerName", "Default Server Name", "Name of the server. Allowed word list: https://github.com/landfallgames/tabg-word-list").Value;
         __instance.ServerDescription = configFile.Bind("Server List", "ServerDescription", "Description for server /n for new line", "Server Description").Value;
 
@@ -85,7 +84,7 @@ public static class GameSettingsPatch {
         __instance.Admins = configFile.Bind("Unused", "Admins", "", "Entirely unused").Value.Split(',', System.StringSplitOptions.RemoveEmptyEntries);
         __instance.LANServer = configFile.Bind("Unused", "LANServer", false, "Entirely unused").Value;
         __instance.UsePlayFabStats = configFile.Bind("Unused", "UsePlayFabStats", false, "Entirely unused").Value;
-
+        __instance.ServerBrowserIP = configFile.Bind("Unused", "ServerBrowserIP", "20.234.109.246", "Part of an old unused server list system. Was the IP for the server list API.").Value;
     }
 
     private static void SetDefaultValues(ref GameSettings __instance, TheRing ringRef) {
