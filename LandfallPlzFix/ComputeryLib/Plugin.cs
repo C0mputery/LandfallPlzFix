@@ -21,7 +21,7 @@ public class Plugin : BaseUnityPlugin {
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
         
         Harmony harmony = new Harmony(PluginInfo.PLUGIN_GUID);
-        harmony.PatchAll(typeof(GameSettingsPatch));
+        ApplyPatches();
         
         Logger.LogInfo($"Applied patches.");
     }

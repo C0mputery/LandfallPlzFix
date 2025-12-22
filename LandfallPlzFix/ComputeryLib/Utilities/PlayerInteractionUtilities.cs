@@ -2,18 +2,28 @@ using Landfall.Network;
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace ComputeryLib.Utilities;
 
 public static class PlayerInteractionUtilities {
-    public static void SendChatThrowable(string message, TABGPlayerServer sender, ServerClient world) {
-        string[] chunks = SplitMessageIntoChunks(message, 255);
-        Vector3 centerPosition = sender.PlayerPosition + new Vector3(sender.PlayerRotation.x, 0, sender.PlayerRotation.y) * 1f;
+    public static void SendPrivateMessage(string message, TABGPlayerServer sender, ServerClient world) {
+        string[] chunks = SplitMessageIntoChunks(message, 200);
+        
+        Quaternion rotation = Quaternion.Euler(0, sender.PlayerRotation.y, 0);
+        Vector3 forwardDirection = rotation * Vector3.forward;
+        Vector3 rightDirection = rotation * Vector3.right;
 
+        Vector3 center = (sender.PlayerPosition + (forwardDirection * 3f));
+        for (int i = 0; i < chunks.Length; i++) {
+            string chunk = chunks[i];
+            Vector3 currentChatThrowPosition = center + (rightDirection * ((i - (chunks.Length - 1) / 2f) * 2f));
+            ThorwChunk(chunk, currentChatThrowPosition, sender, world);
+        }
     }
     
-    private static string[] SplitMessageIntoChunks(string message, int maxBytes) {
+    private static string[] SplitMessageIntoChunks(string message, int maxChunkByteSize) {
         if (string.IsNullOrEmpty(message)) { return [""]; }
 
         List<string> chunks = [];
@@ -21,16 +31,13 @@ public static class PlayerInteractionUtilities {
 
         while (currentIndex < message.Length) {
             int chunkLength = 0;
-            int byteCount = 0;
 
             while (currentIndex + chunkLength < message.Length) {
-                int charBytes = Encoding.Unicode.GetByteCount(message[currentIndex + chunkLength].ToString());
-                if (byteCount + charBytes <= maxBytes) {
-                    byteCount += charBytes;
-                    chunkLength++;
-                } else {
-                    break;
-                }
+                string potentialChunk = message.Substring(currentIndex, chunkLength + 1);
+                int potentialBytes = Encoding.Unicode.GetByteCount(potentialChunk);
+                
+                if (potentialBytes <= maxChunkByteSize) { chunkLength++; }
+                else { break; }
             }
 
             if (currentIndex + chunkLength >= message.Length) {
@@ -38,9 +45,9 @@ public static class PlayerInteractionUtilities {
                 break;
             }
 
-            int lastSpaceIndex = message.LastIndexOf(' ', currentIndex + chunkLength - 1, chunkLength);
+            int lastSpaceIndex = message.LastIndexOf(' ', currentIndex + chunkLength - 1);
 
-            if (lastSpaceIndex > currentIndex) {
+            if (lastSpaceIndex > currentIndex && lastSpaceIndex < currentIndex + chunkLength) {
                 chunks.Add(message.Substring(currentIndex, lastSpaceIndex - currentIndex));
                 currentIndex = lastSpaceIndex + 1;
             } else {
@@ -51,5 +58,25 @@ public static class PlayerInteractionUtilities {
         }
 
         return chunks.ToArray();
+    }
+    
+    private static void ThorwChunk(string chunk, Vector3 position, TABGPlayerServer sender, ServerClient world) {
+        using MemoryStream memoryStream = new MemoryStream();
+        using BinaryWriter writer = new BinaryWriter(memoryStream);
+        
+        writer.Write(sender.PlayerIndex);
+        writer.Write(position.x);
+        writer.Write(position.y);
+        writer.Write(position.z);
+        writer.Write(90f);
+        writer.Write(0f);
+        
+        byte[] chunkBytes = Encoding.Unicode.GetBytes(chunk);
+        int chunkLength = chunkBytes.Length;
+        if (chunkLength > byte.MaxValue) { throw new ArgumentException("Chunk size exceeds maximum allowed length??? Something broke with the chunking logic."); }
+        writer.Write((byte)chunkLength);
+        writer.Write(chunkBytes);
+        
+        world.SendMessageToClients(EventCode.ThrowChatMessage, memoryStream.ToArray(), sender.PlayerIndex , true);
     }
 }
