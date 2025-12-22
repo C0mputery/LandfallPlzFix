@@ -1,12 +1,11 @@
 using System.IO;
-using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using Landfall.Network;
 using UnityEngine;
 
-namespace ComputeryLib.ImprovedConfig;
+namespace ComputeryLib.Config;
 
 [HarmonyPatch(typeof(GameSettings))]
 public static class GameSettingsPatch {
