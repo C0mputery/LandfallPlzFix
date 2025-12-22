@@ -69,21 +69,28 @@ public static class ChatCommandManager {
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()) {
             foreach (Type type in assembly.GetTypes()) {
                 foreach (MethodInfo method in type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)) {
-                    ChatCommand attribute = method.GetCustomAttribute<ChatCommand>();
-                    if (attribute == null) { continue; }
-                    
-                    string commandName = attribute.CommandName.ToLower();
-                    
-                    if (Commands.ContainsKey(commandName)) {
-                        Plugin.Logger.LogWarning($"Command '{commandName}' has already been registered. Skipping duplicate registration from method '{method.Name}' in type '{type.FullName}'.");
-                        continue;
+                    IEnumerable<ChatCommandAttribute>? attributes = method.GetCustomAttributes<ChatCommandAttribute>();
+                    foreach (ChatCommandAttribute attribute in attributes) {
+                        if (attribute == null) { continue; }
+
+                        string commandName = attribute.CommandName.ToLower();
+
+                        if (Commands.ContainsKey(commandName))
+                        {
+                            Plugin.Logger.LogWarning(
+                                $"Command '{commandName}' has already been registered. Skipping duplicate registration from method '{method.Name}' in type '{type.FullName}'.");
+                            continue;
+                        }
+
+                        Commands[commandName] = new ChatCommandContext
+                        {
+                            Command = (ChatCommandHandler)Delegate.CreateDelegate(typeof(ChatCommandHandler), method),
+                            Description = attribute.Description,
+                            PermissionLevel = ChatCommandsConfig.Bind("Permissions", commandName,
+                                attribute.DefaultPermissionLevel,
+                                $"Permission level for the /{commandName} command.\n{attribute.Description}").Value
+                        };
                     }
-                    
-                    Commands[commandName] = new ChatCommandContext {
-                        Command = (ChatCommandHandler)Delegate.CreateDelegate(typeof(ChatCommandHandler), method),
-                        Description = attribute.Description,
-                        PermissionLevel = ChatCommandsConfig.Bind("Permissions", commandName, attribute.DefaultPermissionLevel, $"Permission level for the /{commandName} command.\n{attribute.Description}").Value
-                    };
                 }
             }
         }
@@ -112,8 +119,8 @@ public static class ChatCommandManager {
     }
 }
 
-[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-public class ChatCommand(string commandName, string description, int defaultPermissionLevel) : Attribute {
+[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
+public class ChatCommandAttribute(string commandName, string description, int defaultPermissionLevel) : Attribute {
     public readonly string CommandName = commandName;
     public readonly string Description = description;
     public readonly int DefaultPermissionLevel = defaultPermissionLevel;
