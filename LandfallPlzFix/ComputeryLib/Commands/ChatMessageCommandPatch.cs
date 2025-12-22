@@ -2,7 +2,7 @@ using System.Text;
 using HarmonyLib;
 using Landfall.Network;
 
-namespace ComputeryLib.ChatCommands;
+namespace ComputeryLib.Commands;
 
 [HarmonyPatch(typeof(ChatMessageCommand))]
 public static class ChatMessageCommandPatch {

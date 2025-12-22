@@ -8,7 +8,11 @@ using System.Text;
 namespace ComputeryLib.Utilities;
 
 public static class PlayerInteractionUtilities {
-    public static void SendPrivateMessage(string message, TABGPlayerServer sender, ServerClient world) {
+    public static void PrivateMessageOrConsoleLog(string message, TABGPlayerServer? sender, ServerClient world) {
+        if (sender == null) { Plugin.Logger.LogInfo(message); }
+        else { PrivateMessage(message, sender, world); }
+    }
+    public static void PrivateMessage(string message, TABGPlayerServer sender, ServerClient world) {
         string[] chunks = SplitMessageIntoChunks(message, 200);
         
         Quaternion rotation = Quaternion.Euler(0, sender.PlayerRotation.y, 0);
@@ -22,7 +26,6 @@ public static class PlayerInteractionUtilities {
             ThorwChunk(chunk, currentChatThrowPosition, sender, world);
         }
     }
-    
     private static string[] SplitMessageIntoChunks(string message, int maxChunkByteSize) {
         if (string.IsNullOrEmpty(message)) { return [""]; }
 
@@ -59,7 +62,6 @@ public static class PlayerInteractionUtilities {
 
         return chunks.ToArray();
     }
-    
     private static void ThorwChunk(string chunk, Vector3 position, TABGPlayerServer sender, ServerClient world) {
         using MemoryStream memoryStream = new MemoryStream();
         using BinaryWriter writer = new BinaryWriter(memoryStream);

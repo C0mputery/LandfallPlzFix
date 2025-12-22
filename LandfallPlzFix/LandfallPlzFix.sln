@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TokenAuthFixer", "TokenAuth
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComputeryLib", "ComputeryLib\ComputeryLib.csproj", "{4E5982C8-F661-457C-8A6A-114A4F535BFC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComputeryTabgCLI", "ComputeryTabgCLI\ComputeryTabgCLI.csproj", "{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{4E5982C8-F661-457C-8A6A-114A4F535BFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4E5982C8-F661-457C-8A6A-114A4F535BFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4E5982C8-F661-457C-8A6A-114A4F535BFC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
