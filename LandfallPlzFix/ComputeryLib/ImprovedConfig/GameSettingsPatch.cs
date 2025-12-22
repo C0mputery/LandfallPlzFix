@@ -1,4 +1,6 @@
+using System.IO;
 using System.Linq;
+using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using Landfall.Network;
@@ -17,7 +19,7 @@ public static class GameSettingsPatch {
     }
 
     private static void LoadFromConfig(ref GameSettings __instance, TheRing ringRef) {
-        ConfigFile configFile = Plugin.Config;
+        ConfigFile configFile = new ConfigFile(Path.Combine(Paths.ConfigPath, "Landfall.cfg"), true);
         
         __instance.TimeOfDay = Random.Range(0.0f, 1f);
         __instance.RingSizes = ringRef.ringSizes;
