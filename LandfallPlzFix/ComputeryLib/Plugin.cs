@@ -1,4 +1,5 @@
-﻿using BepInEx;
+﻿using System;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using ComputeryLib.ChatCommands;
@@ -32,4 +33,6 @@ public class Plugin : BaseUnityPlugin {
         harmony.PatchAll(typeof(ChatMessageCommandPatch));
 
     }
+
+    private void Start() { ChatCommandManager.RegisterCommands(); }
 }
