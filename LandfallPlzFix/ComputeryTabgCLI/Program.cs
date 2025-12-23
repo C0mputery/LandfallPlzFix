@@ -4,7 +4,6 @@ using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
-using TwoWayAnonymousPipe;
 
 namespace ComputeryTabgCLI;
 
@@ -15,9 +14,6 @@ internal static class Program {
     
     private static TextView _logView = null!;
     private static TextField _commandInput = null!;
-    
-    private static TwoWayAnonymousPipeServer pipeServer = new TwoWayAnonymousPipeServer();
-    private static TwoWayAnonymousPipeHandles pipeHandles = pipeServer.InitializePipes();
 
     // TODO: optimize this
     private static void AppendLog(string text) {
@@ -116,9 +112,11 @@ internal static class Program {
     private static async Task RunServerAsync(CancellationToken cancellationToken) {
         string unityAppPath = @"C:\Users\Computery\Desktop\LandfallPlzFix\Server\TABG.exe";
         
+        string pipeGuid = Guid.NewGuid().ToString();
+        
         ProcessStartInfo startInfo = new ProcessStartInfo {
             FileName = unityAppPath,
-            Arguments = $"-pipeHandles {pipeHandles} -headless -nographics -batchmode -logFile -",
+            Arguments = $"-pipeName {pipeGuid} -headless -nographics -batchmode -logFile -",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -150,7 +148,7 @@ internal static class Program {
         _commandInput.KeyDown += (s, e) => {
             if (e != Key.Enter) { return; }
             string command = _commandInput.Text;
-            pipeServer.SendMessage(command);
+            //pipeServer.SendMessage(command);
             _commandInput.Text = string.Empty;
         };
         

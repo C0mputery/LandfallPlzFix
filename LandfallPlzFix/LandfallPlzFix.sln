@@ -10,8 +10,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComputeryLib", "ComputeryLi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComputeryTabgCLI", "ComputeryTabgCLI\ComputeryTabgCLI.csproj", "{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TwoWayAnonymousPipe", "TwoWayAnonymousPipe\TwoWayAnonymousPipe.csproj", "{1051F8DE-15F0-4A20-8DC3-98CCD9BF9C66}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,9 +36,5 @@ Global
 		{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B93A8228-7CE6-484A-8DEE-4A0D24418DDD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1051F8DE-15F0-4A20-8DC3-98CCD9BF9C66}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1051F8DE-15F0-4A20-8DC3-98CCD9BF9C66}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1051F8DE-15F0-4A20-8DC3-98CCD9BF9C66}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1051F8DE-15F0-4A20-8DC3-98CCD9BF9C66}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

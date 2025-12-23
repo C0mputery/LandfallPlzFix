@@ -11,8 +11,4 @@
       <PackageReference Include="Terminal.Gui" Version="2.0.0-develop.4746" />
     </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\TwoWayAnonymousPipe\TwoWayAnonymousPipe.csproj" />
-    </ItemGroup>
-
 </Project>

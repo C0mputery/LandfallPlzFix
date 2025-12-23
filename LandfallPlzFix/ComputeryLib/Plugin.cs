@@ -1,12 +1,12 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using ComputeryLib.CLI;
 using ComputeryLib.Commands;
 using ComputeryLib.Config;
 using ComputeryLib.Utilities;
 using ComputeryLib.Utilities.WorldUtility;
 using HarmonyLib;
-using TwoWayAnonymousPipe;
 using UnityEngine;
 
 namespace ComputeryLib;
@@ -29,19 +29,18 @@ public class Plugin : BaseUnityPlugin {
     }
 
     private static void TryCreatePipe() {
-        if (!ArgumentUtility.TryGetArgument("-pipeHandles", out string? pipeHandlesString)) {
+        if (!ArgumentUtility.TryGetArgument("-pipeName", out string? pipeName)) {
             Logger.LogInfo("No pipe handles argument found, likely not running the CLI.");
             return;
         }
-        TwoWayAnonymousPipeHandles pipeHandles = TwoWayAnonymousPipeHandles.FromString(pipeHandlesString);
-        
         // Prevent LandLog from using ugly console output
+        // TODO: tranpiler patch to resolve the time being on the wrong line
         LandLog.checkedHeadless = true;
         LandLog.Headless = false;
         
         GameObject pipeHandlerObject = new GameObject("TwoWayAnonymousPipeHandler");
         DontDestroyOnLoad(pipeHandlerObject);
-        pipeHandlerObject.AddComponent<TwoWayAnonymousPipeHandler.TwoWayAnonymousPipeHandler>().InitializePipes(pipeHandles);
+        pipeHandlerObject.AddComponent<PipeHandler>().InitializePipe(pipeName);
     }
     
     private static void ApplyPatches() {
