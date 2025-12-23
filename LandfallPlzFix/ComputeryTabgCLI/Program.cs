@@ -68,7 +68,14 @@ internal static class Program {
             WordWrap = true,
             BorderStyle = LineStyle.Rounded
         };
-        _logView.Initialized += (s, e) => { _logView.ContextMenu!.Root = new Menu(); }; // Disable context menu in this dumb hacky way
+        _logView.Initialized += (s, e) => {
+            // Only way I found to disable context items is in this dumb hacky way
+            View deleteAll = _logView.ContextMenu!.Root!.SubViews.ElementAt(1);
+            View cut = _logView.ContextMenu!.Root.SubViews.ElementAt(3);
+            _logView.ContextMenu!.Root.Remove(deleteAll);
+            _logView.ContextMenu!.Root.Remove(cut);
+
+        };
         _logView.DrawingText += (s, e) => { ClampLogScroll(); };
         
         TextField commandInput = new TextField {
