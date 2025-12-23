@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Terminal.Gui.App;
+using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -8,71 +9,104 @@ using TwoWayAnonymousPipe;
 namespace ComputeryTabgCLI;
 
 internal static class Program {
+    private static readonly CancellationTokenSource cts = new();
     private static Process? _serverProcess;
+    
+    private static TextView _logView = null!;
+    public static void AppendLog(string text) {
+        int currentTopRow = _logView.TopRow;
+        int currentLines = _logView.Lines;
+        int visibleHeight = _logView.GetContentSize().Height;
+        int maxScroll = Math.Max(0, currentLines - visibleHeight);
+        bool wasAtBottom = (currentLines == 0) || (currentTopRow >= maxScroll - 1);
+            
+        if (!string.IsNullOrEmpty(_logView.Text)) { _logView.Text += "\n"; }
+        _logView.Text += $"{text}";
+            
+        if (wasAtBottom) {
+            _logView.MoveEnd();
+            ClampLogScroll();
+        } else {
+            _logView.TopRow = currentTopRow;
+        }
+    }
+    
+    public static void ClampLogScroll() {
+        int lines = _logView.Lines;
+        int visibleHeight = _logView.GetContentSize().Height;
+        int maxScroll = Math.Max(0, lines - visibleHeight);
+        if (_logView.TopRow > maxScroll) { _logView.TopRow = maxScroll; }
+        _logView.SetNeedsDraw();   
+    }
 
     public static void Main(string[] args) {
-        using IApplication app = Application.Create().Init();
-        Window top = new Window();
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+        Console.CancelKeyPress += OnCancelKeyPress;
         
-        // Log view
-        TextView logView = new TextView {
+        using IApplication app = Application.Create().Init();
+        Window top = new Window() { BorderStyle = LineStyle.None };
+        
+        _logView = new TextView {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
-            Height = Dim.Fill(),
+            Height = Dim.Fill(3),
             ReadOnly = true,
             WordWrap = true,
+            BorderStyle = LineStyle.Rounded
         };
-        logView.Initialized += (s, e) => { logView.ContextMenu!.Root = new Menu(); }; // Disable context menu in this dumb hacky way
-        logView.DrawingText += (s, e) => { ClampLogScroll(); };
-        void ClampLogScroll() {
-            int lines = logView.Lines;
-            int visibleHeight = logView.GetContentSize().Height;
-            int maxScroll = Math.Max(0, lines - visibleHeight);
-            if (logView.TopRow > maxScroll) { logView.TopRow = maxScroll; }
-        }
-        
-        top.Add(logView);
+        _logView.Initialized += (s, e) => { _logView.ContextMenu!.Root = new Menu(); }; // Disable context menu in this dumb hacky way
+        _logView.DrawingText += (s, e) => { ClampLogScroll(); };
         
         TextField commandInput = new TextField {
             X = 0,
-            Y = Pos.AnchorEnd(1),
+            Y = Pos.AnchorEnd(3),
             Width = Dim.Fill(),
+            Height = Dim.Absolute(3),
+            BorderStyle = LineStyle.Rounded
         };
         top.Add(commandInput);
-        void AppendLog(string text) {
-            int currentTopRow = logView.TopRow;
-            int currentLines = logView.Lines;
-            int visibleHeight = logView.GetContentSize().Height;
-            int maxScroll = Math.Max(0, currentLines - visibleHeight);
-            bool wasAtBottom = (currentLines == 0) || (currentTopRow >= maxScroll - 1);
-            
-            if (!string.IsNullOrEmpty(logView.Text)) { logView.Text += "\n"; }
-            logView.Text += $"{text}";
-            
-            if (wasAtBottom) {
-                logView.MoveEnd();
-                ClampLogScroll();
-            } else {
-                int newLines = logView.Lines;
-                int newMaxScroll = Math.Max(0, newLines - visibleHeight);
-                logView.TopRow = Math.Min(currentTopRow, newMaxScroll);
-            }
-        }
         
+        top.Add(_logView);
         
         commandInput.KeyDown += (s, e) => {
             if (e != Key.Enter) { return; }
             string command = commandInput.Text;
             string tooAdd = $"> {command}";
             AppendLog(tooAdd);
+            commandInput.Text = string.Empty;
         };
         
+        Task serverTask = Task.Run(async () => await RunServerAsync(cts.Token), cts.Token);
+
         app.Run(top);
-        
         top.Dispose();
+        CleanupServer();
+    }
+    
+    private static void OnProcessExit(object? sender, EventArgs e) { CleanupServer(); }
+    private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e) {
+        e.Cancel = true;
+        CleanupServer();
+        Environment.Exit(0);
     }
 
+    private static void CleanupServer() {
+        try { cts.Cancel(); }
+        catch { /* Ingorned */ }
+
+        if (_serverProcess != null && !_serverProcess.HasExited) {
+            try {
+                _serverProcess.Kill(entireProcessTree: true);
+                _serverProcess.WaitForExit(5000);
+                _serverProcess.Dispose();
+            }
+            catch (Exception ex) { Console.Error.WriteLine($"Error closing server: {ex.Message}"); }
+            finally { _serverProcess = null; }
+        }
+        cts.Dispose();
+    }
+    
     private static async Task RunServerAsync(CancellationToken cancellationToken) {
         string unityAppPath = @"C:\Users\Computery\Desktop\LandfallPlzFix\Server\TABG.exe";
         
@@ -93,13 +127,13 @@ internal static class Program {
         _serverProcess.EnableRaisingEvents = true;
         _serverProcess.OutputDataReceived += (sender, e) => {
             if (!string.IsNullOrEmpty(e.Data)) {
-                //consoleView.AppendLog($"{e.Data}");
+                AppendLog($"{e.Data}");
             }
         };
 
         _serverProcess.ErrorDataReceived += (sender, e) => {
             if (!string.IsNullOrEmpty(e.Data)) {
-                //consoleView.AppendLog($"{e.Data}");
+                AppendLog($"{e.Data}");
             }
         };
 
@@ -110,8 +144,8 @@ internal static class Program {
         _serverProcess.BeginOutputReadLine();
         _serverProcess.BeginErrorReadLine();
 
-        //consoleView.AppendLog("Unity process started.");
-        await _serverProcess.WaitForExitAsync(cancellationToken);
-        //consoleView.AppendLog("Unity process exited.");
+        AppendLog("Unity process started.");
+        try { await _serverProcess.WaitForExitAsync(cancellationToken); } catch { /* Ignored */ }
+        AppendLog("Unity process exited.");
     }
 }
