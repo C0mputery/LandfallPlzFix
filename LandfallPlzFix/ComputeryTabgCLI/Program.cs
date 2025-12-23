@@ -9,8 +9,9 @@ using TwoWayAnonymousPipe;
 namespace ComputeryTabgCLI;
 
 internal static class Program {
-    private static readonly CancellationTokenSource cts = new();
+    private static readonly CancellationTokenSource CancellationTokenSource = new();
     private static Process? _serverProcess;
+    private static IApplication _app = null!;
     
     private static TextView _logView = null!;
     public static void AppendLog(string text) {
@@ -19,10 +20,22 @@ internal static class Program {
         int visibleHeight = _logView.GetContentSize().Height;
         int maxScroll = Math.Max(0, currentLines - visibleHeight);
         bool wasAtBottom = (currentLines == 0) || (currentTopRow >= maxScroll - 1);
-            
+                
         if (!string.IsNullOrEmpty(_logView.Text)) { _logView.Text += "\n"; }
         _logView.Text += $"{text}";
             
+        const int maxLogLength = 50000;
+        if (_logView.Text.Length > maxLogLength) {
+            string currentText = _logView.Text;
+            int cutIndex = currentText.Length - (maxLogLength / 2);
+            int nextNewLine = currentText.IndexOf('\n', cutIndex);
+            if (nextNewLine != -1) {
+                _logView.Text = currentText.Substring(nextNewLine + 1);
+            } else {
+                _logView.Text = currentText.Substring(cutIndex);
+            }
+        }
+                
         if (wasAtBottom) {
             _logView.MoveEnd();
             ClampLogScroll();
@@ -43,7 +56,7 @@ internal static class Program {
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         Console.CancelKeyPress += OnCancelKeyPress;
         
-        using IApplication app = Application.Create().Init();
+        _app = Application.Create().Init();
         Window top = new Window() { BorderStyle = LineStyle.None };
         
         _logView = new TextView {
@@ -77,10 +90,11 @@ internal static class Program {
             commandInput.Text = string.Empty;
         };
         
-        Task serverTask = Task.Run(async () => await RunServerAsync(cts.Token), cts.Token);
-
-        app.Run(top);
+        Task serverTask = RunServerAsync(CancellationTokenSource.Token);
+        
+        _app.Run(top);
         top.Dispose();
+        _app.Dispose();
         CleanupServer();
     }
     
@@ -92,7 +106,7 @@ internal static class Program {
     }
 
     private static void CleanupServer() {
-        try { cts.Cancel(); }
+        try { CancellationTokenSource.Cancel(); }
         catch { /* Ingorned */ }
 
         if (_serverProcess != null && !_serverProcess.HasExited) {
@@ -104,7 +118,7 @@ internal static class Program {
             catch (Exception ex) { Console.Error.WriteLine($"Error closing server: {ex.Message}"); }
             finally { _serverProcess = null; }
         }
-        cts.Dispose();
+        CancellationTokenSource.Dispose();
     }
     
     private static async Task RunServerAsync(CancellationToken cancellationToken) {
@@ -127,13 +141,13 @@ internal static class Program {
         _serverProcess.EnableRaisingEvents = true;
         _serverProcess.OutputDataReceived += (sender, e) => {
             if (!string.IsNullOrEmpty(e.Data)) {
-                AppendLog($"{e.Data}");
+                _app.Invoke(() => { AppendLog($"{e.Data}"); });
             }
         };
 
         _serverProcess.ErrorDataReceived += (sender, e) => {
             if (!string.IsNullOrEmpty(e.Data)) {
-                AppendLog($"{e.Data}");
+                _app.Invoke(() => { AppendLog($"{e.Data}"); });
             }
         };
 
@@ -144,8 +158,8 @@ internal static class Program {
         _serverProcess.BeginOutputReadLine();
         _serverProcess.BeginErrorReadLine();
 
-        AppendLog("Unity process started.");
+        _app.Invoke(() => { AppendLog("Unity process started."); });
         try { await _serverProcess.WaitForExitAsync(cancellationToken); } catch { /* Ignored */ }
-        AppendLog("Unity process exited.");
+        _app.Invoke(() => { AppendLog("Unity process exited."); });
     }
 }
