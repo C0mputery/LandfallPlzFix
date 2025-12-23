@@ -14,42 +14,35 @@ internal static class Program {
     private static IApplication _app = null!;
     
     private static TextView _logView = null!;
-    public static void AppendLog(string text) {
+    private static TextField _commandInput = null!;
+    
+    private static TwoWayAnonymousPipeServer pipeServer = new TwoWayAnonymousPipeServer();
+    private static TwoWayAnonymousPipeHandles pipeHandles = pipeServer.InitializePipes();
+
+    // TODO: optimize this
+    private static void AppendLog(string text) {
         int currentTopRow = _logView.TopRow;
         int currentLines = _logView.Lines;
         int visibleHeight = _logView.GetContentSize().Height;
         int maxScroll = Math.Max(0, currentLines - visibleHeight);
         bool wasAtBottom = (currentLines == 0) || (currentTopRow >= maxScroll - 1);
-                
-        if (!string.IsNullOrEmpty(_logView.Text)) { _logView.Text += "\n"; }
-        _logView.Text += $"{text}";
-            
-        const int maxLogLength = 50000;
-        if (_logView.Text.Length > maxLogLength) {
-            string currentText = _logView.Text;
-            int cutIndex = currentText.Length - (maxLogLength / 2);
-            int nextNewLine = currentText.IndexOf('\n', cutIndex);
-            if (nextNewLine != -1) {
-                _logView.Text = currentText.Substring(nextNewLine + 1);
-            } else {
-                _logView.Text = currentText.Substring(cutIndex);
-            }
-        }
-                
+
+        if (!string.IsNullOrEmpty(_logView.Text)) { _logView.Text += $"\n{text}"; }
+        else { _logView.Text += $"{text}"; }
+
         if (wasAtBottom) {
             _logView.MoveEnd();
             ClampLogScroll();
-        } else {
-            _logView.TopRow = currentTopRow;
         }
+        else { _logView.TopRow = currentTopRow; }
     }
-    
-    public static void ClampLogScroll() {
+
+    private static void ClampLogScroll() {
         int lines = _logView.Lines;
         int visibleHeight = _logView.GetContentSize().Height;
         int maxScroll = Math.Max(0, lines - visibleHeight);
         if (_logView.TopRow > maxScroll) { _logView.TopRow = maxScroll; }
-        _logView.SetNeedsDraw();   
+        _logView.SetNeedsDraw();
     }
 
     public static void Main(string[] args) {
@@ -78,24 +71,16 @@ internal static class Program {
         };
         _logView.DrawingText += (s, e) => { ClampLogScroll(); };
         
-        TextField commandInput = new TextField {
+        _commandInput = new TextField {
             X = 0,
             Y = Pos.AnchorEnd(3),
             Width = Dim.Fill(),
             Height = Dim.Absolute(3),
             BorderStyle = LineStyle.Rounded
         };
-        top.Add(commandInput);
+        top.Add(_commandInput);
         
         top.Add(_logView);
-        
-        commandInput.KeyDown += (s, e) => {
-            if (e != Key.Enter) { return; }
-            string command = commandInput.Text;
-            string tooAdd = $"> {command}";
-            AppendLog(tooAdd);
-            commandInput.Text = string.Empty;
-        };
         
         Task serverTask = RunServerAsync(CancellationTokenSource.Token);
         
@@ -131,12 +116,9 @@ internal static class Program {
     private static async Task RunServerAsync(CancellationToken cancellationToken) {
         string unityAppPath = @"C:\Users\Computery\Desktop\LandfallPlzFix\Server\TABG.exe";
         
-        using TwoWayAnonymousPipeServer pipeServer = new TwoWayAnonymousPipeServer();
-        TwoWayAnonymousPipeHandles pipeHandles = pipeServer.InitializePipes();
-
         ProcessStartInfo startInfo = new ProcessStartInfo {
             FileName = unityAppPath,
-            Arguments = $"-batchmode -nographics -pipeHandles {pipeHandles}",
+            Arguments = $"-pipeHandles {pipeHandles} -headless -nographics -batchmode -logFile -",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -157,14 +139,21 @@ internal static class Program {
                 _app.Invoke(() => { AppendLog($"{e.Data}"); });
             }
         };
-
+        
         _serverProcess.Start();
         
-        pipeServer.CloseClientHandles();
+        //pipeServer.CloseClientHandles();
 
         _serverProcess.BeginOutputReadLine();
         _serverProcess.BeginErrorReadLine();
-
+        
+        _commandInput.KeyDown += (s, e) => {
+            if (e != Key.Enter) { return; }
+            string command = _commandInput.Text;
+            pipeServer.SendMessage(command);
+            _commandInput.Text = string.Empty;
+        };
+        
         _app.Invoke(() => { AppendLog("Unity process started."); });
         try { await _serverProcess.WaitForExitAsync(cancellationToken); } catch { /* Ignored */ }
         _app.Invoke(() => { AppendLog("Unity process exited."); });

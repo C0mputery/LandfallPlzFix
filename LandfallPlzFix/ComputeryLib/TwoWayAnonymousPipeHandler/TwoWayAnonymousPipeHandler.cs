@@ -10,14 +10,13 @@ public class TwoWayAnonymousPipeHandler : MonoBehaviour {
 
     public void InitializePipes(TwoWayAnonymousPipeHandles handles) {
         _pipeClient.InitializePipes(handles);
-        _pipeClient.SendMessage(""); // Message to indicate that we should close the handlers
         _initialized = true;
     }
     public void Update() {
         if (!_initialized) { return; }
-        if (_pipeClient.HasData()) {
-            string? message = _pipeClient.ReceiveMessage();
+        while (_pipeClient.TryReceiveMessage(out string? message)) {
             ChatCommandManager.HandleConsoleMessage(message ?? "");
+            LandLog.Log($"Received pipe message: {message}");
         }
     }
     

@@ -20,8 +20,19 @@ public abstract class TwoWayAnonymousPipeBase : IDisposable {
     protected StreamReader? Reader;
 
     public void SendMessage(string message) { Writer?.WriteLine(message); }
-    public bool HasData() { return Reader?.Peek() != -1; }
-    public string? ReceiveMessage() { return Reader?.ReadLine(); }
+    
+    public bool TryReceiveMessage(out string? message) {
+        message = null;
+        try {
+            if (Reader == null || InPipe == null) return false;
+            
+            Task<string>? task = Reader.ReadLineAsync();
+            if (!task.Wait(TimeSpan.FromMilliseconds(5))) { return false; }
+            message = task.Result;
+            return true;
+        } 
+        catch { return false; }
+    }
 
     public virtual void Dispose() {
         InPipe?.Dispose();
