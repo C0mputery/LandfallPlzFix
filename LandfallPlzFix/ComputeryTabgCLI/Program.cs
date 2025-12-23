@@ -1,47 +1,79 @@
 ﻿using System.Diagnostics;
-using ComputeryTabgCLI;
-using Terminal.Gui;
+using Terminal.Gui.App;
+using Terminal.Gui.Input;
+using Terminal.Gui.ViewBase;
+using Terminal.Gui.Views;
 using TwoWayAnonymousPipe;
 
-internal class Program {
+namespace ComputeryTabgCLI;
+
+internal static class Program {
     private static Process? _serverProcess;
-    private static CancellationTokenSource? _cancellationTokenSource;
 
     public static void Main(string[] args) {
-        Application.Init();
-
-        Window mainWindow = new Window() {
-            Title = string.Empty,
+        using IApplication app = Application.Create().Init();
+        Window top = new Window();
+        
+        // Log view
+        TextView logView = new TextView {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(),
-            ColorScheme = Theme.WindowScheme,
-            Border = new Border { BorderStyle = BorderStyle.None }
+            ReadOnly = true,
+            WordWrap = true,
         };
-
-        ConsoleView consoleView = new ConsoleView() {
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = Dim.Fill()
-        };
-
-        mainWindow.Add(consoleView);
-
-        Application.Top.Add(mainWindow);
-
-        _cancellationTokenSource = new CancellationTokenSource();
-        _ = RunServerAsync(consoleView, _cancellationTokenSource.Token);
-
-        try { Application.Run(); } 
-        finally { 
-            CloseServer();
-            Application.Shutdown(); 
+        logView.Initialized += (s, e) => { logView.ContextMenu!.Root = new Menu(); }; // Disable context menu in this dumb hacky way
+        logView.DrawingText += (s, e) => { ClampLogScroll(); };
+        void ClampLogScroll() {
+            int lines = logView.Lines;
+            int visibleHeight = logView.GetContentSize().Height;
+            int maxScroll = Math.Max(0, lines - visibleHeight);
+            if (logView.TopRow > maxScroll) { logView.TopRow = maxScroll; }
         }
+        
+        top.Add(logView);
+        
+        TextField commandInput = new TextField {
+            X = 0,
+            Y = Pos.AnchorEnd(1),
+            Width = Dim.Fill(),
+        };
+        top.Add(commandInput);
+        void AppendLog(string text) {
+            int currentTopRow = logView.TopRow;
+            int currentLines = logView.Lines;
+            int visibleHeight = logView.GetContentSize().Height;
+            int maxScroll = Math.Max(0, currentLines - visibleHeight);
+            bool wasAtBottom = (currentLines == 0) || (currentTopRow >= maxScroll - 1);
+            
+            if (!string.IsNullOrEmpty(logView.Text)) { logView.Text += "\n"; }
+            logView.Text += $"{text}";
+            
+            if (wasAtBottom) {
+                logView.MoveEnd();
+                ClampLogScroll();
+            } else {
+                int newLines = logView.Lines;
+                int newMaxScroll = Math.Max(0, newLines - visibleHeight);
+                logView.TopRow = Math.Min(currentTopRow, newMaxScroll);
+            }
+        }
+        
+        
+        commandInput.KeyDown += (s, e) => {
+            if (e != Key.Enter) { return; }
+            string command = commandInput.Text;
+            string tooAdd = $"> {command}";
+            AppendLog(tooAdd);
+        };
+        
+        app.Run(top);
+        
+        top.Dispose();
     }
 
-    private static async Task RunServerAsync(ConsoleView consoleView, CancellationToken cancellationToken) {
+    private static async Task RunServerAsync(CancellationToken cancellationToken) {
         string unityAppPath = @"C:\Users\Computery\Desktop\LandfallPlzFix\Server\TABG.exe";
         
         using TwoWayAnonymousPipeServer pipeServer = new TwoWayAnonymousPipeServer();
@@ -58,12 +90,17 @@ internal class Program {
 
         _serverProcess = new Process();
         _serverProcess.StartInfo = startInfo;
+        _serverProcess.EnableRaisingEvents = true;
         _serverProcess.OutputDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) { consoleView.AppendLog($"{e.Data}"); }
+            if (!string.IsNullOrEmpty(e.Data)) {
+                //consoleView.AppendLog($"{e.Data}");
+            }
         };
 
         _serverProcess.ErrorDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) { consoleView.AppendLog($"{e.Data}"); }
+            if (!string.IsNullOrEmpty(e.Data)) {
+                //consoleView.AppendLog($"{e.Data}");
+            }
         };
 
         _serverProcess.Start();
@@ -73,19 +110,8 @@ internal class Program {
         _serverProcess.BeginOutputReadLine();
         _serverProcess.BeginErrorReadLine();
 
-        consoleView.AppendLog("Unity process started.");
+        //consoleView.AppendLog("Unity process started.");
         await _serverProcess.WaitForExitAsync(cancellationToken);
-        consoleView.AppendLog("Unity process exited.");
-    }
-
-    private static void CloseServer() {
-        _cancellationTokenSource?.Cancel();
-        
-        if (_serverProcess != null) {
-            try { if (!_serverProcess.HasExited) { _serverProcess.Kill(true); } }
-            finally { _serverProcess.Dispose(); }
-        }
-
-        _cancellationTokenSource?.Dispose();
+        //consoleView.AppendLog("Unity process exited.");
     }
 }

@@ -35,6 +35,10 @@ public class Plugin : BaseUnityPlugin {
         }
         TwoWayAnonymousPipeHandles pipeHandles = TwoWayAnonymousPipeHandles.FromString(pipeHandlesString);
         
+        // Prevent LandLog from using ugly console output
+        LandLog.checkedHeadless = true;
+        LandLog.Headless = false;
+        
         GameObject pipeHandlerObject = new GameObject("TwoWayAnonymousPipeHandler");
         DontDestroyOnLoad(pipeHandlerObject);
         pipeHandlerObject.AddComponent<TwoWayAnonymousPipeHandler.TwoWayAnonymousPipeHandler>().InitializePipes(pipeHandles);

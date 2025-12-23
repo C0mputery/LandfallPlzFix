@@ -1,4 +1,5 @@
-﻿using Terminal.Gui;
+﻿/*
+using Terminal.Gui;
 
 namespace ComputeryTabgCLI;
 
@@ -31,4 +32,4 @@ public static class Theme {
         HotFocus = Application.Driver.MakeAttribute(Color.Black, Color.Green),
         Disabled = Application.Driver.MakeAttribute(Color.Gray, Color.Black)
     };
-}
+}*/
