@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using ComputeryTabgCLI;
 using Terminal.Gui;
+using TwoWayAnonymousPipe;
 
 internal class Program {
     private static Process? _serverProcess;
@@ -42,10 +43,13 @@ internal class Program {
 
     private static async Task RunServerAsync(ConsoleView consoleView, CancellationToken cancellationToken) {
         string unityAppPath = @"C:\Users\Computery\Desktop\LandfallPlzFix\Server\TABG.exe";
+        
+        using TwoWayAnonymousPipeServer pipeServer = new TwoWayAnonymousPipeServer();
+        TwoWayAnonymousPipeHandles pipeHandles = pipeServer.InitializePipes();
 
         ProcessStartInfo startInfo = new ProcessStartInfo {
             FileName = unityAppPath,
-            Arguments = "-batchmode -nographics -logFile -",
+            Arguments = $"-batchmode -nographics -pipeHandles {pipeHandles}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -55,18 +59,16 @@ internal class Program {
         _serverProcess = new Process();
         _serverProcess.StartInfo = startInfo;
         _serverProcess.OutputDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) {
-                consoleView.AppendLog($"[Unity]: {e.Data}");
-            }
+            if (!string.IsNullOrEmpty(e.Data)) { consoleView.AppendLog($"{e.Data}"); }
         };
 
         _serverProcess.ErrorDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) {
-                consoleView.AppendLog($"[Unity]: {e.Data}");
-            }
+            if (!string.IsNullOrEmpty(e.Data)) { consoleView.AppendLog($"{e.Data}"); }
         };
 
         _serverProcess.Start();
+        
+        pipeServer.CloseClientHandles();
 
         _serverProcess.BeginOutputReadLine();
         _serverProcess.BeginErrorReadLine();
@@ -80,7 +82,7 @@ internal class Program {
         _cancellationTokenSource?.Cancel();
         
         if (_serverProcess != null) {
-            try { if (!_serverProcess.HasExited) { _serverProcess.Kill(); } }
+            try { if (!_serverProcess.HasExited) { _serverProcess.Kill(true); } }
             finally { _serverProcess.Dispose(); }
         }
 

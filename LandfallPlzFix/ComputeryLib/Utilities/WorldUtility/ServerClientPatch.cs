@@ -7,5 +7,5 @@ namespace ComputeryLib.Utilities.WorldUtility;
 public static class ServerClientPatch {
     [HarmonyPostfix]
     [HarmonyPatch(nameof(ServerClient.Awake))]
-    public static void KickPlayerPrefix(ref ServerClient __instance) { WorldUtilites.SetWorldClient(__instance); }
+    public static void AwakePrefix(ref ServerClient __instance) { WorldUtilites.SetWorldClient(__instance); }
 }

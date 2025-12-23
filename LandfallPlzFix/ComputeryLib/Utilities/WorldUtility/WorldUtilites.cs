@@ -1,11 +1,12 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Landfall.Network;
 
 namespace ComputeryLib.Utilities.WorldUtility;
 
 public static class WorldUtilites {
     private static ServerClient? _worldClient;
-    public static bool TryGetWorld(out ServerClient? world) {
+    public static bool TryGetWorld([NotNullWhen(true)] out ServerClient? world) {
         if (_worldClient != null) { world = _worldClient; return true; }
         world = null;
         return false;

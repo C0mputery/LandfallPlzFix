@@ -75,15 +75,12 @@ public static class ChatCommandManager {
 
                         string commandName = attribute.CommandName.ToLower();
 
-                        if (Commands.ContainsKey(commandName))
-                        {
-                            Plugin.Logger.LogWarning(
-                                $"Command '{commandName}' has already been registered. Skipping duplicate registration from method '{method.Name}' in type '{type.FullName}'.");
+                        if (Commands.ContainsKey(commandName)) {
+                            Plugin.Logger.LogWarning($"Command '{commandName}' has already been registered. Skipping duplicate registration from method '{method.Name}' in type '{type.FullName}'.");
                             continue;
                         }
 
-                        Commands[commandName] = new ChatCommandContext
-                        {
+                        Commands[commandName] = new ChatCommandContext {
                             Command = (ChatCommandHandler)Delegate.CreateDelegate(typeof(ChatCommandHandler), method),
                             Description = attribute.Description,
                             PermissionLevel = ChatCommandsConfig.Bind("Permissions", commandName,

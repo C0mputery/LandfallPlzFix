@@ -3,8 +3,11 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using ComputeryLib.Commands;
 using ComputeryLib.Config;
+using ComputeryLib.Utilities;
 using ComputeryLib.Utilities.WorldUtility;
 using HarmonyLib;
+using TwoWayAnonymousPipe;
+using UnityEngine;
 
 namespace ComputeryLib;
 
@@ -20,11 +23,21 @@ public class Plugin : BaseUnityPlugin {
         Config = base.Config;
 
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
-        
-        Harmony harmony = new Harmony(PluginInfo.PLUGIN_GUID);
+        TryCreatePipe();
         ApplyPatches();
-        
         Logger.LogInfo($"Applied patches.");
+    }
+
+    private static void TryCreatePipe() {
+        if (!ArgumentUtility.TryGetArgument("-pipeHandles", out string? pipeHandlesString)) {
+            Logger.LogInfo("No pipe handles argument found, likely not running the CLI.");
+            return;
+        }
+        TwoWayAnonymousPipeHandles pipeHandles = TwoWayAnonymousPipeHandles.FromString(pipeHandlesString);
+        
+        GameObject pipeHandlerObject = new GameObject("TwoWayAnonymousPipeHandler");
+        DontDestroyOnLoad(pipeHandlerObject);
+        pipeHandlerObject.AddComponent<TwoWayAnonymousPipeHandler.TwoWayAnonymousPipeHandler>().InitializePipes(pipeHandles);
     }
     
     private static void ApplyPatches() {
@@ -32,7 +45,6 @@ public class Plugin : BaseUnityPlugin {
         harmony.PatchAll(typeof(GameSettingsPatch));
         harmony.PatchAll(typeof(ChatMessageCommandPatch));
         harmony.PatchAll(typeof(ServerClientPatch));
-
     }
 
     private void Start() { ChatCommandManager.RegisterCommands(); }

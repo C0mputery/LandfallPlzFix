@@ -17,4 +17,13 @@ public static class HealingPatch {
     [HarmonyPrefix]
     [HarmonyPatch(nameof(Healing.CancelHealing))]
     public static void CancelHealingPrefix(Healing __instance) { __instance.isHealing = false; }
+
+    /// <summary>
+    /// This makes sure that healing is false before calling this.progressBar.StopAllProgress to prevent Healing.CancelHealing from being called again.
+    /// </summary>
+    [HarmonyPrefix]
+    [HarmonyPatch(nameof(Healing.Heal))]
+    public static void HealPrefix(ref float healingTime) {
+        healingTime = 0.0f;
+    }
 }

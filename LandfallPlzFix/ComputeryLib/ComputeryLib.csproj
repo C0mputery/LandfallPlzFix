@@ -40,4 +40,8 @@
   <ItemGroup>
     <Folder Include="MidMatchJoining\" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\TwoWayAnonymousPipe\TwoWayAnonymousPipe.csproj" />
+  </ItemGroup>
 </Project>

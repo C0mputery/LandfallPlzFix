@@ -5,6 +5,12 @@ namespace TwoWayAnonymousPipe;
 public readonly struct TwoWayAnonymousPipeHandles(string serverToClientHandle, string clientToServerHandle) {
     public readonly string ServerToClientPipeHandle = serverToClientHandle;
     public readonly string ClientToServerPipeHandle = clientToServerHandle;
+
+    public override string ToString() { return $"{ServerToClientPipeHandle}|{ClientToServerPipeHandle}"; }
+    public static TwoWayAnonymousPipeHandles FromString(string data) { 
+        string[] parts = data.Split('|');
+        return new TwoWayAnonymousPipeHandles(parts[0], parts[1]);
+    }
 }
 
 public abstract class TwoWayAnonymousPipeBase : IDisposable {
