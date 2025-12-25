@@ -10,6 +10,18 @@ using UnityEngine;
 namespace ComputeryLib.CLI;
 
 public class PipeHandler : MonoBehaviour {
+    public static PipeHandler? Instance { get; private set; }
+    
+    public static void CreatePipe(string pipeName) {
+        if (Instance != null) { Destroy(Instance.gameObject); }
+        
+        GameObject pipeHandlerObject = new GameObject("PipeHandler");
+        DontDestroyOnLoad(pipeHandlerObject);
+        Instance = pipeHandlerObject.AddComponent<PipeHandler>();
+        Instance.InitializePipe(pipeName);
+    }
+
+    
     private NamedPipeClientStream? _pipeClient;
     private StreamWriter? _pipeWriter;
     private CancellationTokenSource? _cts;

@@ -1,5 +1,4 @@
-﻿using System;
-using BepInEx;
+﻿using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using ComputeryLib.CLI;
@@ -31,23 +30,23 @@ public class Plugin : BaseUnityPlugin {
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
         if (usingCli) {
             Logger.LogInfo("Detected CLI, initializing pipe handler.");
-            CreatePipe(pipeName!);
+            PipeHandler.CreatePipe(pipeName!);
         }
+        
         ApplyPatches();
-        LoggerImprover.ImproveLoggersCheck();
+        ApplyConditionalPatches();
+        
         Logger.LogInfo($"Applied patches.");
-    }
-    
-    private static void CreatePipe(string pipeName) {
-        GameObject pipeHandlerObject = new GameObject("PipeHandler");
-        DontDestroyOnLoad(pipeHandlerObject);
-        pipeHandlerObject.AddComponent<PipeHandler>().InitializePipe(pipeName);
     }
     
     private static void ApplyPatches() {
         Harmony.PatchAll(typeof(GameSettingsPatch));
         Harmony.PatchAll(typeof(ChatMessageCommandPatch));
         Harmony.PatchAll(typeof(ServerClientPatch));
+    }
+    
+    private static void ApplyConditionalPatches() {
+        if (Config.Bind("Log", "ImproveLoggers", true, "Removes a lot of the junk logs you prob don't care about").Value) { LoggerImprover.ApplyLoggerPatches(); }
     }
 
     private void Start() { ChatCommandManager.RegisterCommands(); }
