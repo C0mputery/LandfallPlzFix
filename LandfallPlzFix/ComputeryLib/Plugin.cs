@@ -39,11 +39,6 @@ public class Plugin : BaseUnityPlugin {
     }
     
     private static void CreatePipe(string pipeName) {
-        // Prevent LandLog from using ugly console output
-        // TODO: tranpiler patch to resolve the time being on the wrong line so we dont need this
-        LandLog.checkedHeadless = true;
-        LandLog.Headless = false;
-        
         GameObject pipeHandlerObject = new GameObject("PipeHandler");
         DontDestroyOnLoad(pipeHandlerObject);
         pipeHandlerObject.AddComponent<PipeHandler>().InitializePipe(pipeName);
