@@ -19,11 +19,14 @@ namespace ComputeryLib;
 public class Plugin : BaseUnityPlugin {
     public new static ManualLogSource Logger = null!;
     public new static ConfigFile Config = null!;
+    public static Harmony Harmony = new Harmony(PluginInfo.PLUGIN_GUID);
         
     private void Awake() {
         Logger = base.Logger;
         Config = base.Config;
-
+        
+        Harmony.PatchAll(typeof(ManualLogSourcePatch));
+        
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
         TryCreatePipe();
         ApplyPatches();
@@ -46,10 +49,9 @@ public class Plugin : BaseUnityPlugin {
     }
     
     private static void ApplyPatches() {
-        Harmony harmony = new Harmony(PluginInfo.PLUGIN_GUID);
-        harmony.PatchAll(typeof(GameSettingsPatch));
-        harmony.PatchAll(typeof(ChatMessageCommandPatch));
-        harmony.PatchAll(typeof(ServerClientPatch));
+        Harmony.PatchAll(typeof(GameSettingsPatch));
+        Harmony.PatchAll(typeof(ChatMessageCommandPatch));
+        Harmony.PatchAll(typeof(ServerClientPatch));
     }
 
     private void Start() { ChatCommandManager.RegisterCommands(); }

@@ -19,16 +19,23 @@ internal static class Program {
     private static TextView _logView = null!;
     private static TextField _commandInput = null!;
 
-    // TODO: optimize this
-    private static void AppendLog(string text) {
+    private static void LogLine(string text) {
+        if (!string.IsNullOrEmpty(_logView.Text)) { text += $"\n{text}"; }
+        _app.Invoke(() => { LogTextApp(text); });
+    }
+
+    private static void LogText(string text) {
+        _app.Invoke(() => { LogTextApp(text); });
+    }
+
+    private static void LogTextApp(string text) {
         int currentTopRow = _logView.TopRow;
         int currentLines = _logView.Lines;
         int visibleHeight = _logView.GetContentSize().Height;
         int maxScroll = Math.Max(0, currentLines - visibleHeight);
         bool wasAtBottom = (currentLines == 0) || (currentTopRow >= maxScroll - 1);
-
-        if (!string.IsNullOrEmpty(_logView.Text)) { _logView.Text += $"\n{text}"; }
-        else { _logView.Text += $"{text}"; }
+        
+        _logView.Text += text;
 
         if (wasAtBottom) {
             _logView.MoveEnd();
@@ -84,8 +91,6 @@ internal static class Program {
         
         _ = RunServerAsync(CancellationTokenSource.Token);
         
-        _keepAliveTimer = new Timer(_ => { _app.Invoke(() => { }); }, null, 100, 100); // keep the app responsive when not tabbed in
-
         _app.Run(top);
         _keepAliveTimer?.Dispose();
         top.Dispose();
@@ -127,7 +132,6 @@ internal static class Program {
     
     private static async Task RunServerAsync(CancellationToken cancellationToken) {
         string unityAppPath = @"C:\Users\Computery\Desktop\LandfallPlzFix\Server\TABG.exe";
-        string
         
         string pipeGuid = Guid.NewGuid().ToString(); // use this as the pipe name
 
@@ -135,6 +139,8 @@ internal static class Program {
         _serverProcess.StartInfo = new ProcessStartInfo {
             FileName = unityAppPath,
             Arguments = $"-pipeName {pipeGuid}",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
@@ -145,27 +151,31 @@ internal static class Program {
         _serverProcess.BeginOutputReadLine();
         _serverProcess.BeginErrorReadLine();
         
+        _serverProcess.OutputDataReceived += (sender, e) => {
+            if (!string.IsNullOrEmpty(e.Data)) { LogLine(e.Data); }
+        };
+
+        _serverProcess.ErrorDataReceived += (sender, e) => {
+            if (!string.IsNullOrEmpty(e.Data)) { LogLine(e.Data); }
+        };
+        
         _ = Task.Run(async () => {
             try {
                 _pipeServer = new NamedPipeServerStream(pipeGuid, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-                _app.Invoke(() => { AppendLog("Waiting for Unity to connect..."); });
+                LogLine("Waiting for Unity to connect...");
                 
                 await _pipeServer.WaitForConnectionAsync(cancellationToken);
                 _pipeWriter = new StreamWriter(_pipeServer) { AutoFlush = true };
-                _app.Invoke(() => { AppendLog("Unity connected to pipe."); });
+                LogLine("Unity connected to pipe.");
                 
                 // Read messages from Unity
                 using StreamReader reader = new StreamReader(_pipeServer, leaveOpen: true);
                 while (!cancellationToken.IsCancellationRequested && _pipeServer.IsConnected) {
                     string? line = await reader.ReadLineAsync(cancellationToken);
-                    if (line != null) {
-                        _app.Invoke(() => { AppendLog(line); });
-                    }
+                    if (line != null) { LogLine(line); }
                 }
             }
-            catch (Exception ex) {
-                _app.Invoke(() => { AppendLog($"Pipe error: {ex.Message}"); });
-            }
+            catch (Exception ex) { LogLine($"Pipe error: {ex.Message}"); }
         }, cancellationToken);
         
         _commandInput.KeyDown += (_, e) => {
@@ -173,13 +183,13 @@ internal static class Program {
             string command = _commandInput.Text;
             if (!string.IsNullOrWhiteSpace(command) && _pipeWriter != null) {
                 try { _pipeWriter.WriteLine(command); }
-                catch (Exception ex) { AppendLog($"Failed to send command: {ex.Message}"); }
+                catch (Exception ex) { LogLine($"Failed to send command: {ex.Message}"); }
             }
             _commandInput.Text = string.Empty;
         };
         
-        _app.Invoke(() => { AppendLog("Unity process started."); });
+        LogLine("Unity process started.");
         try { await _serverProcess.WaitForExitAsync(cancellationToken); } catch { /* Ignored */ }
-        _app.Invoke(() => { AppendLog("Unity process exited."); });
+        LogLine("Unity process exited.");
     }
 }

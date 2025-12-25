@@ -26,7 +26,7 @@ public static class GameSettingsPatch {
         __instance.BaseRingTime = ringRef.RingBaseTime;
         
         // Server
-        __instance.Relay = configFile.Bind("Server", "Relay", false, "Use the Unity Relay or not").Value;
+        __instance.Relay = configFile.Bind("Server", "Relay", true, "Use the Unity Relay or not").Value; // make this enabled by default just for the sake of ease of use
         __instance.Port = configFile.Bind("Server", "Port", (ushort)7777, "Port for the server to use if the relay is not enabled").Value;
         __instance.Password = configFile.Bind("Server", "Password", "", "Password, leave blank for no password").Value;
         
@@ -135,6 +135,6 @@ public static class GameSettingsPatch {
         __instance.BombDefuseTime = 5f;
         __instance.RoundTime = 90;
         __instance.LANServer = false;
-        __instance.Relay = false;
+        __instance.Relay = true;
     }
 }
