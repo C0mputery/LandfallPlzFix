@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.IO.Pipes;
+using System.Text;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
@@ -10,6 +11,7 @@ namespace ComputeryTabgCLI;
 
 internal static class Program {
     private static readonly CancellationTokenSource CancellationTokenSource = new();
+    private static readonly StringBuilder LogBuffer = new();
     private static Process? _serverProcess;
     private static IApplication _app = null!;
     private static NamedPipeServerStream? _pipeServer;
@@ -19,13 +21,12 @@ internal static class Program {
     private static TextField _commandInput = null!;
 
     private static void LogLine(string text) {
-        if (!string.IsNullOrEmpty(_logView.Text)) { text = $"\n{text}"; }
-        _app.Invoke(() => { LogTextApp(text); });
+        _app.Invoke(() => LogBuffer.AppendLine(text));
     }
     
     private static void LogTextApp(string text) {
         int currentTopRow = _logView.TopRow;
-        int currentLines = _logView.Lines;
+        int currentLines = CurrentLines();
         int visibleHeight = _logView.GetContentSize().Height;
         int maxScroll = Math.Max(0, currentLines - visibleHeight);
         bool wasAtBottom = (currentLines == 0) || (currentTopRow >= maxScroll - 1);
@@ -39,8 +40,10 @@ internal static class Program {
         else { _logView.TopRow = currentTopRow; }
     }
 
+    private static int CurrentLines() { return _logView.Lines - 1; } // Minus 1 for the extra line
+
     private static void ClampLogScroll() {
-        int lines = _logView.Lines;
+        int lines = CurrentLines();
         int visibleHeight = _logView.GetContentSize().Height;
         int maxScroll = Math.Max(0, lines - visibleHeight);
         if (_logView.TopRow > maxScroll) { _logView.TopRow = maxScroll; }
@@ -72,6 +75,13 @@ internal static class Program {
 
         };
         _logView.DrawingText += (_, _) => { ClampLogScroll(); };
+        
+        _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
+            if (LogBuffer.Length <= 0) { return true; }
+            LogTextApp(LogBuffer.ToString());
+            LogBuffer.Clear();
+            return true;
+        });
         
         _commandInput = new TextField {
             X = 0,

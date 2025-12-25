@@ -57,7 +57,7 @@ public static class ChatCommandManager {
         string[] arguments = parts.Skip(1).ToArray();
 
         if (!Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) {
-            Plugin.Logger.LogInfo($"Unknown command: {commandName}, type /help for a list of commands you can use."); 
+            Plugin.Logger.LogInfo($"Unknown command: {commandName}, type help for a list of commands you can use."); 
             return;
         }
         chatCommandContext.Command(arguments, null, WorldUtilites.GetWorld());
@@ -83,9 +83,7 @@ public static class ChatCommandManager {
                         Commands[commandName] = new ChatCommandContext {
                             Command = (ChatCommandHandler)Delegate.CreateDelegate(typeof(ChatCommandHandler), method),
                             Description = attribute.Description,
-                            PermissionLevel = ChatCommandsConfig.Bind("Permissions", commandName,
-                                attribute.DefaultPermissionLevel,
-                                $"Permission level for the /{commandName} command.\n{attribute.Description}").Value
+                            PermissionLevel = ChatCommandsConfig.Bind("Permissions", commandName, attribute.DefaultPermissionLevel, $"Permission level for the /{commandName} command.\n{attribute.Description}").Value
                         };
                     }
                 }
