@@ -27,8 +27,8 @@ public static class ChatCommandManager {
     private static readonly Dictionary<string, ChatCommandContext> Commands = new();
     public static bool HandleChatMessage(string message, TABGPlayerServer sender, ServerClient world) {
         if (message.Length == 0 || message[0] != '/') { return false; }
-        string[] parts = message.Substring(1).Split(' ');
-        string commandName = parts[0].ToLower();
+        string[] parts = message.ToLower().Substring(1).Split(' ');
+        string commandName = parts[0];
         string[] arguments = parts.Skip(1).ToArray();
         
         if (!Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) {
@@ -52,14 +52,14 @@ public static class ChatCommandManager {
     }
 
     public static void HandleConsoleMessage(string message) {
-        Plugin.Logger.LogInfo(message);
-        
-        if (message.Length == 0 || message[0] != '/') { return; }
-        string[] parts = message.Substring(1).Split(' ');
+        string[] parts = message.ToLower().Split(' ');
         string commandName = parts[0].ToLower();
         string[] arguments = parts.Skip(1).ToArray();
-        
-        if (!Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) { Plugin.Logger.LogInfo($"Unknown command: {commandName}, type /help for a list of commands you can use."); }
+
+        if (!Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) {
+            Plugin.Logger.LogInfo($"Unknown command: {commandName}, type /help for a list of commands you can use."); 
+            return;
+        }
         chatCommandContext.Command(arguments, null, WorldUtilites.GetWorld());
     }
 

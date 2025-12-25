@@ -20,20 +20,21 @@ public class Plugin : BaseUnityPlugin {
     public new static ManualLogSource Logger = null!;
     public new static ConfigFile Config = null!;
     public static Harmony Harmony = new Harmony(PluginInfo.PLUGIN_GUID);
-        
+    
     private void Awake() {
         Logger = base.Logger;
         Config = base.Config;
-        
-        Harmony.PatchAll(typeof(ManualLogSourcePatch));
-        
+
+        TryCreatePipe(); // Runs before anything else to catch log messages from the start
+
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
-        TryCreatePipe();
         ApplyPatches();
         Logger.LogInfo($"Applied patches.");
     }
 
     private static void TryCreatePipe() {
+        Harmony.PatchAll(typeof(ManualLogSourcePatch));
+        
         if (!ArgumentUtility.TryGetArgument("-pipeName", out string? pipeName)) {
             Logger.LogInfo("No pipe handles argument found, likely not running the CLI.");
             return;

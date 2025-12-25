@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading;
@@ -12,7 +13,7 @@ public class PipeHandler : MonoBehaviour {
     private NamedPipeClientStream? _pipeClient;
     private StreamWriter? _pipeWriter;
     private CancellationTokenSource? _cts;
-    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _messageQueue = new();
+    private readonly ConcurrentQueue<string> _messageQueue = new();
 
     public void InitializePipe(string pipeName) {
         _cts = new CancellationTokenSource();
@@ -36,9 +37,7 @@ public class PipeHandler : MonoBehaviour {
 
             while (!cancellationToken.IsCancellationRequested && _pipeClient.IsConnected) {
                 string? line = await reader.ReadLineAsync();
-                if (line != null) {
-                    _messageQueue.Enqueue(line);
-                }
+                if (line != null) { _messageQueue.Enqueue(line); }
             }
         }
         catch (Exception e) {

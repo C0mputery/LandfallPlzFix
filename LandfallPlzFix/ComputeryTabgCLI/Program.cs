@@ -14,20 +14,15 @@ internal static class Program {
     private static IApplication _app = null!;
     private static NamedPipeServerStream? _pipeServer;
     private static StreamWriter? _pipeWriter;
-    private static Timer? _keepAliveTimer;
     
     private static TextView _logView = null!;
     private static TextField _commandInput = null!;
 
     private static void LogLine(string text) {
-        if (!string.IsNullOrEmpty(_logView.Text)) { text += $"\n{text}"; }
+        if (!string.IsNullOrEmpty(_logView.Text)) { text = $"\n{text}"; }
         _app.Invoke(() => { LogTextApp(text); });
     }
-
-    private static void LogText(string text) {
-        _app.Invoke(() => { LogTextApp(text); });
-    }
-
+    
     private static void LogTextApp(string text) {
         int currentTopRow = _logView.TopRow;
         int currentLines = _logView.Lines;
@@ -92,7 +87,6 @@ internal static class Program {
         _ = RunServerAsync(CancellationTokenSource.Token);
         
         _app.Run(top);
-        _keepAliveTimer?.Dispose();
         top.Dispose();
         _app.Dispose();
         CleanupServer();
@@ -106,9 +100,6 @@ internal static class Program {
     }
 
     private static void CleanupServer() {
-        try { _keepAliveTimer?.Dispose(); }
-        catch { /* Ignored */ }
-
         try { CancellationTokenSource.Cancel(); }
         catch { /* Ingorned */ }
 
