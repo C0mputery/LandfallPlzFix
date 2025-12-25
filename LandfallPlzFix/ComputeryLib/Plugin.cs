@@ -22,25 +22,25 @@ public class Plugin : BaseUnityPlugin {
     public static Harmony Harmony = new Harmony(PluginInfo.PLUGIN_GUID);
     
     private void Awake() {
+        bool usingCli = ArgumentUtility.TryGetArgument("-pipeName", out string? pipeName);
+        if (usingCli) { Harmony.PatchAll(typeof(ManualLogSourcePatch)); }
+        
         Logger = base.Logger;
         Config = base.Config;
-
-        TryCreatePipe(); // Runs before anything else to catch log messages from the start
-
+        
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+        if (usingCli) {
+            Logger.LogInfo("Detected CLI, initializing pipe handler.");
+            CreatePipe(pipeName!);
+        }
         ApplyPatches();
+        LoggerImprover.ImproveLoggersCheck();
         Logger.LogInfo($"Applied patches.");
     }
-
-    private static void TryCreatePipe() {
-        Harmony.PatchAll(typeof(ManualLogSourcePatch));
-        
-        if (!ArgumentUtility.TryGetArgument("-pipeName", out string? pipeName)) {
-            Logger.LogInfo("No pipe handles argument found, likely not running the CLI.");
-            return;
-        }
+    
+    private static void CreatePipe(string pipeName) {
         // Prevent LandLog from using ugly console output
-        // TODO: tranpiler patch to resolve the time being on the wrong line
+        // TODO: tranpiler patch to resolve the time being on the wrong line so we dont need this
         LandLog.checkedHeadless = true;
         LandLog.Headless = false;
         

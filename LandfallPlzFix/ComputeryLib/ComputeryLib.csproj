@@ -31,6 +31,7 @@
   <ItemGroup>
     <Reference Include="$(ServerManagedFolder)Assembly-CSharp.dll" Private="false" Publicize="true"/>
     <Reference Include="$(ServerManagedFolder)Assembly-CSharp-firstpass.dll" Private="false" Publicize="true"/>
+    <Reference Include="$(ServerManagedFolder)FMODUnity.dll" Private="false" Publicize="true"/>
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
