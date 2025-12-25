@@ -6,6 +6,8 @@ namespace ComputeryLib.CLI;
 
 /// <summary>
 /// Lord forgive me.
+///
+/// This is needed so bepin actually logs to the standard out when using the CLI.
 /// </summary>
 [HarmonyPatch(typeof(ManualLogSource))]
 public class ManualLogSourcePatch {
