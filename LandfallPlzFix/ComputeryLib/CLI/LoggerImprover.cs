@@ -17,7 +17,6 @@ public static class LoggerImprover {
         catch (Exception e) { Plugin.Logger.LogError(e); }
         
         Plugin.Harmony.PatchAll(typeof(LoggerImprover));
-    
     } 
     
     public static IEnumerable<CodeInstruction> SuppressCommunityBackendHeartbeatLogs(IEnumerable<CodeInstruction> instructions) {

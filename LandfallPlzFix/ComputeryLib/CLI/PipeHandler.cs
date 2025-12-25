@@ -29,7 +29,7 @@ public class PipeHandler : MonoBehaviour {
 
     public void InitializePipe(string pipeName) {
         _cts = new CancellationTokenSource();
-        Task.Run(() => PipeClientLoop(pipeName, _cts.Token));
+        _ = PipeClientLoop(pipeName, _cts.Token);
     }
 
     public new void SendMessage(string message) {
@@ -38,7 +38,7 @@ public class PipeHandler : MonoBehaviour {
         catch { /* Ignored */ }
     }
 
-    private async void PipeClientLoop(string pipeName, CancellationToken cancellationToken) {
+    private async Task PipeClientLoop(string pipeName, CancellationToken cancellationToken) {
         StreamReader? reader = null;
         try {
             _pipeClient = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
