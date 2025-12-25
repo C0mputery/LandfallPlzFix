@@ -1,4 +1,5 @@
-﻿using BepInEx;
+﻿using System;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using ComputeryLib.CLI;
@@ -11,6 +12,7 @@ using UnityEngine;
 
 namespace ComputeryLib;
 
+[DefaultExecutionOrder(-int.MaxValue / 10)]
 [BepInIncompatibility("citrusbird.tabg.citruslib")]
 [BepInIncompatibility("com.starterpack.tabg.contagious")]
 [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -38,7 +40,7 @@ public class Plugin : BaseUnityPlugin {
         LandLog.checkedHeadless = true;
         LandLog.Headless = false;
         
-        GameObject pipeHandlerObject = new GameObject("TwoWayAnonymousPipeHandler");
+        GameObject pipeHandlerObject = new GameObject("PipeHandler");
         DontDestroyOnLoad(pipeHandlerObject);
         pipeHandlerObject.AddComponent<PipeHandler>().InitializePipe(pipeName);
     }

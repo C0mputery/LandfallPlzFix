@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.IO.Pipes;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
@@ -11,6 +12,9 @@ internal static class Program {
     private static readonly CancellationTokenSource CancellationTokenSource = new();
     private static Process? _serverProcess;
     private static IApplication _app = null!;
+    private static NamedPipeServerStream? _pipeServer;
+    private static StreamWriter? _pipeWriter;
+    private static Timer? _keepAliveTimer;
     
     private static TextView _logView = null!;
     private static TextField _commandInput = null!;
@@ -57,7 +61,7 @@ internal static class Program {
             WordWrap = true,
             BorderStyle = LineStyle.Rounded
         };
-        _logView.Initialized += (s, e) => {
+        _logView.Initialized += (_, _) => {
             // Only way I found to disable context items is in this dumb hacky way
             View deleteAll = _logView.ContextMenu!.Root!.SubViews.ElementAt(1);
             View cut = _logView.ContextMenu!.Root.SubViews.ElementAt(3);
@@ -65,7 +69,7 @@ internal static class Program {
             _logView.ContextMenu!.Root.Remove(cut);
 
         };
-        _logView.DrawingText += (s, e) => { ClampLogScroll(); };
+        _logView.DrawingText += (_, _) => { ClampLogScroll(); };
         
         _commandInput = new TextField {
             X = 0,
@@ -78,9 +82,12 @@ internal static class Program {
         
         top.Add(_logView);
         
-        Task serverTask = RunServerAsync(CancellationTokenSource.Token);
+        _ = RunServerAsync(CancellationTokenSource.Token);
         
+        _keepAliveTimer = new Timer(_ => { _app.Invoke(() => { }); }, null, 100, 100); // keep the app responsive when not tabbed in
+
         _app.Run(top);
+        _keepAliveTimer?.Dispose();
         top.Dispose();
         _app.Dispose();
         CleanupServer();
@@ -94,8 +101,17 @@ internal static class Program {
     }
 
     private static void CleanupServer() {
+        try { _keepAliveTimer?.Dispose(); }
+        catch { /* Ignored */ }
+
         try { CancellationTokenSource.Cancel(); }
         catch { /* Ingorned */ }
+
+        try {
+            _pipeWriter?.Dispose();
+            _pipeServer?.Dispose();
+        }
+        catch { /* Ignored */ }
 
         if (_serverProcess != null && !_serverProcess.HasExited) {
             try {
@@ -111,44 +127,54 @@ internal static class Program {
     
     private static async Task RunServerAsync(CancellationToken cancellationToken) {
         string unityAppPath = @"C:\Users\Computery\Desktop\LandfallPlzFix\Server\TABG.exe";
+        string
         
-        string pipeGuid = Guid.NewGuid().ToString();
-        
-        ProcessStartInfo startInfo = new ProcessStartInfo {
-            FileName = unityAppPath,
-            Arguments = $"-pipeName {pipeGuid} -headless -nographics -batchmode -logFile -",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
+        string pipeGuid = Guid.NewGuid().ToString(); // use this as the pipe name
 
         _serverProcess = new Process();
-        _serverProcess.StartInfo = startInfo;
+        _serverProcess.StartInfo = new ProcessStartInfo {
+            FileName = unityAppPath,
+            Arguments = $"-pipeName {pipeGuid}",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
         _serverProcess.EnableRaisingEvents = true;
-        _serverProcess.OutputDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) {
-                _app.Invoke(() => { AppendLog($"{e.Data}"); });
-            }
-        };
-
-        _serverProcess.ErrorDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) {
-                _app.Invoke(() => { AppendLog($"{e.Data}"); });
-            }
-        };
         
         _serverProcess.Start();
         
-        //pipeServer.CloseClientHandles();
-
         _serverProcess.BeginOutputReadLine();
         _serverProcess.BeginErrorReadLine();
         
-        _commandInput.KeyDown += (s, e) => {
+        _ = Task.Run(async () => {
+            try {
+                _pipeServer = new NamedPipeServerStream(pipeGuid, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                _app.Invoke(() => { AppendLog("Waiting for Unity to connect..."); });
+                
+                await _pipeServer.WaitForConnectionAsync(cancellationToken);
+                _pipeWriter = new StreamWriter(_pipeServer) { AutoFlush = true };
+                _app.Invoke(() => { AppendLog("Unity connected to pipe."); });
+                
+                // Read messages from Unity
+                using StreamReader reader = new StreamReader(_pipeServer, leaveOpen: true);
+                while (!cancellationToken.IsCancellationRequested && _pipeServer.IsConnected) {
+                    string? line = await reader.ReadLineAsync(cancellationToken);
+                    if (line != null) {
+                        _app.Invoke(() => { AppendLog(line); });
+                    }
+                }
+            }
+            catch (Exception ex) {
+                _app.Invoke(() => { AppendLog($"Pipe error: {ex.Message}"); });
+            }
+        }, cancellationToken);
+        
+        _commandInput.KeyDown += (_, e) => {
             if (e != Key.Enter) { return; }
             string command = _commandInput.Text;
-            //pipeServer.SendMessage(command);
+            if (!string.IsNullOrWhiteSpace(command) && _pipeWriter != null) {
+                try { _pipeWriter.WriteLine(command); }
+                catch (Exception ex) { AppendLog($"Failed to send command: {ex.Message}"); }
+            }
             _commandInput.Text = string.Empty;
         };
         
