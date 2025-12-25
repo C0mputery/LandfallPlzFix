@@ -20,7 +20,7 @@ public static class LoggerImprover {
         try {
             Type nestedType = typeof(CommunityBackendAPI).GetNestedType("<>c__DisplayClass7_0", BindingFlags.NonPublic);
             MethodInfo? targetMethod = nestedType.GetMethod("<GameServerHeartbeat>b__0", BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic);
-            Plugin.Harmony.Patch(targetMethod, transpiler: new HarmonyMethod(typeof(LoggerImprover).GetMethod(nameof(SuppressCommunityBackendHeartbeatLogs))));
+            Plugin.Harmony.Patch(targetMethod, new HarmonyMethod(typeof(LoggerImprover).GetMethod(nameof(SuppressCommunityBackendHeartbeatLogs))));
         }
         catch (Exception e) {
             Plugin.Logger.LogError(e);
