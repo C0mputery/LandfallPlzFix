@@ -22,7 +22,7 @@ public class ManualLogSourcePatch {
     [HarmonyPrefix]
     [HarmonyPatch(nameof(ManualLogSource.Log))]
     public static bool LogPrefix(ManualLogSource __instance, LogLevel level, object data) {
-        if (__instance.SourceName == "Console") { return false; } // lets just hope nobody makes a logger with the name "Console"
+        if (__instance.SourceName == "Console") { return false; }
         Console.WriteLine(new LogEventArgs(data, level, __instance));
         return true;
     }

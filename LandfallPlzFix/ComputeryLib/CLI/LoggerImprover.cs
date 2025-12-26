@@ -26,7 +26,6 @@ public static class LoggerImprover {
         return matcher.InstructionEnumeration();
     }
     
-    
     [HarmonyTranspiler]
     [HarmonyPatch(typeof(LandLog), nameof(LandLog.Log), typeof(string), typeof(object))]
     public static IEnumerable<CodeInstruction> FixLandLog(IEnumerable<CodeInstruction> instructions) {
