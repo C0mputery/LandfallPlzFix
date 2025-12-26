@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
 using Landfall.TABG;
+using UnityEngine;
 
 namespace ComputeryLib.CLI;
 
@@ -34,4 +35,9 @@ public static class LoggerImprover {
         matcher.Set(OpCodes.Call, AccessTools.Method(typeof(Console), nameof(Console.Write), [typeof(string)]));
         return matcher.InstructionEnumeration();
     }
+    
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(FMODUnity.RuntimeManager), nameof(FMODUnity.RuntimeManager.LoadBank), typeof(string), typeof(bool))]
+    [HarmonyPatch(typeof(FMODUnity.RuntimeManager), nameof(FMODUnity.RuntimeManager.CreateInstance), typeof(string))]
+    public static bool Disable() { return false; }
 }

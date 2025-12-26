@@ -20,7 +20,7 @@ namespace ComputeryLib;
 public class Plugin : BaseUnityPlugin {
     public new static ManualLogSource Logger = null!;
     public new static ConfigFile Config = null!;
-    public static Harmony Harmony = new Harmony(PluginInfo.PLUGIN_GUID);
+    public static readonly Harmony Harmony = new Harmony(PluginInfo.PLUGIN_GUID);
     
     private void Awake() {
         bool usingCli = ArgumentUtility.TryGetArgument("-pipeName", out string? pipeName);

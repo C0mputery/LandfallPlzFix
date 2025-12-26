@@ -11,7 +11,7 @@ namespace ComputeryTabgCLI;
 internal static class Program {
     private static readonly CancellationTokenSource CancellationTokenSource = new();
     private static readonly List<string> LogBuffer = new();
-    private static readonly object LogBufferLock = new();
+    private static readonly Lock LogBufferLock = new();
     private static Process? _serverProcess;
     private static IApplication _app = null!;
     private static NamedPipeServerStream? _pipeServer;
@@ -31,7 +31,7 @@ internal static class Program {
         Console.CancelKeyPress += OnCancelKeyPress;
         
         _app = Application.Create().Init();
-        Window top = new Window() { BorderStyle = LineStyle.None };
+        Window top = new() { BorderStyle = LineStyle.None };
         
         _logView = new LogView {
             X = 0,
