@@ -32,7 +32,7 @@ internal static class Program {
         HotActive = new Attribute(Color.White, AccentColor),
         Highlight = new Attribute(Color.Black, AccentColor),
         Disabled = new Attribute(Color.DarkGray, Color.Black),
-        Editable = new Attribute(AccentColor, Color.Black),
+        Editable = new Attribute(Color.White, Color.Black),
         ReadOnly = new Attribute(Color.DarkGray, Color.Black),
     };
     
@@ -46,6 +46,20 @@ internal static class Program {
         Window top = new() { BorderStyle = LineStyle.None, };
         top.SetScheme(DefaultScheme);
         
+        Attribute lineAttr = new Attribute(AccentColor, Color.Black);
+        Scheme lineScheme = new() {
+            Normal = lineAttr,
+            HotNormal = lineAttr,
+            Focus = lineAttr,
+            HotFocus = lineAttr,
+            Active = lineAttr,
+            HotActive = lineAttr,
+            Highlight = lineAttr,
+            Disabled = lineAttr,
+            Editable = lineAttr,
+            ReadOnly = lineAttr,
+        };
+        
         _playerListView = new ListView {
             X = 0,
             Y = 0,
@@ -54,6 +68,7 @@ internal static class Program {
             BorderStyle = LineStyle.Rounded,
             SuperViewRendersLineCanvas = true,
         };
+        _playerListView.Border?.SetScheme(lineScheme);
         top.Add(_playerListView);
         
         _logView = new LogView {
@@ -66,6 +81,7 @@ internal static class Program {
             MaxLines = 10000,
             SuperViewRendersLineCanvas = true
         };
+        _logView.Border?.SetScheme(lineScheme);
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
             List<string> linesToAdd = [];
             lock (LogBufferLock) {
@@ -91,8 +107,8 @@ internal static class Program {
             BorderStyle = LineStyle.Rounded,
             SuperViewRendersLineCanvas = true,
         };
+        _commandInput.Border?.SetScheme(lineScheme);
         top.Add(_commandInput);
-        
         
         _ = RunServerAsync(CancellationTokenSource.Token);
         
