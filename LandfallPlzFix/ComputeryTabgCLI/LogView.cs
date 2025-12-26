@@ -264,12 +264,12 @@ public class LogView : View {
         }
 
         if (mouseEvent.Flags.HasFlag(MouseFlags.WheeledDown)) {
-            ScrollDown(3);
+            ScrollDown(1);
             return true;
         }
         
         if (mouseEvent.Flags.HasFlag(MouseFlags.WheeledUp)) {
-            ScrollUp(3);
+            ScrollUp(1);
             return true;
         }
 
