@@ -5,6 +5,7 @@ using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
+using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace ComputeryTabgCLI;
 
@@ -17,34 +18,56 @@ internal static class Program {
     private static NamedPipeServerStream? _pipeServer;
     private static StreamWriter? _pipeWriter;
     
+    private static ListView _playerListView = null!;
     private static LogView _logView = null!;
     private static TextField _commandInput = null!;
 
-    private static void LogLine(string text) {
-        lock (LogBufferLock) {
-            LogBuffer.Add(text);
-        }
-    }
+    private static readonly Color AccentColor = new (0x8B, 0xE0, 0xFF);
+    private static Scheme DefaultScheme => new() {
+        Normal = new Attribute(Color.White, Color.Black),
+        HotNormal = new Attribute(AccentColor, Color.Black),
+        Focus = new Attribute(Color.Black, AccentColor),
+        HotFocus = new Attribute(Color.Black, AccentColor),
+        Active = new Attribute(Color.Black, AccentColor),
+        HotActive = new Attribute(Color.White, AccentColor),
+        Highlight = new Attribute(Color.Black, AccentColor),
+        Disabled = new Attribute(Color.DarkGray, Color.Black),
+        Editable = new Attribute(AccentColor, Color.Black),
+        ReadOnly = new Attribute(Color.DarkGray, Color.Black),
+    };
+    
+    private static void LogLine(string text) { lock (LogBufferLock) { LogBuffer.Add(text); } }
 
     public static void Main(string[] args) {
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         Console.CancelKeyPress += OnCancelKeyPress;
         
         _app = Application.Create().Init();
-        Window top = new() { BorderStyle = LineStyle.None };
+        Window top = new() { BorderStyle = LineStyle.None, };
+        top.SetScheme(DefaultScheme);
         
-        _logView = new LogView {
+        _playerListView = new ListView {
             X = 0,
             Y = 0,
+            Width = Dim.Absolute(21),
+            Height = Dim.Fill(2),
+            BorderStyle = LineStyle.Rounded,
+            SuperViewRendersLineCanvas = true,
+        };
+        top.Add(_playerListView);
+        
+        _logView = new LogView {
+            X = 20,
+            Y = 0,
             Width = Dim.Fill(),
-            Height = Dim.Fill(3),
+            Height = Dim.Fill(2),
             WordWrap = true,
             AutoScroll = true,
-            MaxLines = 10000
+            MaxLines = 10000,
+            SuperViewRendersLineCanvas = true
         };
-        
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
-            List<string> linesToAdd = new();
+            List<string> linesToAdd = [];
             lock (LogBufferLock) {
                 if (LogBuffer.Count > 0) {
                     linesToAdd.AddRange(LogBuffer);
@@ -58,17 +81,18 @@ internal static class Program {
             
             return true;
         });
+        top.Add(_logView);
         
         _commandInput = new TextField {
             X = 0,
             Y = Pos.AnchorEnd(3),
             Width = Dim.Fill(),
             Height = Dim.Absolute(3),
-            BorderStyle = LineStyle.Rounded
+            BorderStyle = LineStyle.Rounded,
+            SuperViewRendersLineCanvas = true,
         };
         top.Add(_commandInput);
         
-        top.Add(_logView);
         
         _ = RunServerAsync(CancellationTokenSource.Token);
         
