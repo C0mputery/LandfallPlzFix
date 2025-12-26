@@ -1,9 +1,10 @@
-﻿using BepInEx;
+﻿using System.IO;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using ComputeryLib.CLI;
 using ComputeryLib.Commands;
-using ComputeryLib.Config;
+using ComputeryLib.ConfigImprover;
 using ComputeryLib.Utilities;
 using ComputeryLib.Utilities.WorldUtility;
 using ComputeryLib.VisitorLog;
