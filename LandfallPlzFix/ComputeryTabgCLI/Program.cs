@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.IO.Pipes;
-using System.Text;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
@@ -11,43 +10,20 @@ namespace ComputeryTabgCLI;
 
 internal static class Program {
     private static readonly CancellationTokenSource CancellationTokenSource = new();
-    private static readonly StringBuilder LogBuffer = new();
+    private static readonly List<string> LogBuffer = new();
+    private static readonly object LogBufferLock = new();
     private static Process? _serverProcess;
     private static IApplication _app = null!;
     private static NamedPipeServerStream? _pipeServer;
     private static StreamWriter? _pipeWriter;
     
-    private static TextView _logView = null!;
+    private static LogView _logView = null!;
     private static TextField _commandInput = null!;
 
     private static void LogLine(string text) {
-        _app.Invoke(() => LogBuffer.AppendLine(text));
-    }
-    
-    private static void LogTextApp(string text) {
-        int currentTopRow = _logView.TopRow;
-        int currentLines = CurrentLines();
-        int visibleHeight = _logView.GetContentSize().Height;
-        int maxScroll = Math.Max(0, currentLines - visibleHeight);
-        bool wasAtBottom = (currentLines == 0) || (currentTopRow >= maxScroll - 1);
-        
-        _logView.Text += text;
-
-        if (wasAtBottom) {
-            _logView.MoveEnd();
-            ClampLogScroll();
+        lock (LogBufferLock) {
+            LogBuffer.Add(text);
         }
-        else { _logView.TopRow = currentTopRow; }
-    }
-
-    private static int CurrentLines() { return _logView.Lines - 1; } // Minus 1 for the extra line
-
-    private static void ClampLogScroll() {
-        int lines = CurrentLines();
-        int visibleHeight = _logView.GetContentSize().Height;
-        int maxScroll = Math.Max(0, lines - visibleHeight);
-        if (_logView.TopRow > maxScroll) { _logView.TopRow = maxScroll; }
-        _logView.SetNeedsDraw();
     }
 
     public static void Main(string[] args) {
@@ -57,29 +33,29 @@ internal static class Program {
         _app = Application.Create().Init();
         Window top = new Window() { BorderStyle = LineStyle.None };
         
-        _logView = new TextView {
+        _logView = new LogView {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(3),
-            ReadOnly = true,
             WordWrap = true,
-            BorderStyle = LineStyle.Rounded
+            AutoScroll = true,
+            MaxLines = 10000
         };
-        _logView.Initialized += (_, _) => {
-            // Only way I found to disable context items is in this dumb hacky way
-            View deleteAll = _logView.ContextMenu!.Root!.SubViews.ElementAt(1);
-            View cut = _logView.ContextMenu!.Root.SubViews.ElementAt(3);
-            _logView.ContextMenu!.Root.Remove(deleteAll);
-            _logView.ContextMenu!.Root.Remove(cut);
-
-        };
-        _logView.DrawingText += (_, _) => { ClampLogScroll(); };
         
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
-            if (LogBuffer.Length <= 0) { return true; }
-            LogTextApp(LogBuffer.ToString());
-            LogBuffer.Clear();
+            List<string> linesToAdd = new();
+            lock (LogBufferLock) {
+                if (LogBuffer.Count > 0) {
+                    linesToAdd.AddRange(LogBuffer);
+                    LogBuffer.Clear();
+                }
+            }
+            
+            if (linesToAdd.Count > 0) {
+                _logView.AddLines(linesToAdd);
+            }
+            
             return true;
         });
         
