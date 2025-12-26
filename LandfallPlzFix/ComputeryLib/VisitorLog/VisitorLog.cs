@@ -33,11 +33,11 @@ public struct DatedString {
     }
 }
 
-public struct VisitorInfo {
-    public List<DatedString> DisplayNames { get; set; }
-    public List<DatedString> SteamIds { get; set; }
-    public List<DatedString> PlayfabIds { get; set; }
-    public List<DatedString> IpAddresses { get; set; }
+public struct VisitorInfo() {
+    public List<DatedString> DisplayNames { get; set; } = [];
+    public List<DatedString> SteamIds { get; set; } = [];
+    public List<DatedString> PlayfabIds { get; set; } = [];
+    public List<DatedString> IpAddresses { get; set; } = [];
     public DateTime FirstSeen { get; set; }
     public DateTime LastSeen { get; set; }
 }
@@ -96,10 +96,7 @@ public static class VisitorLog {
 
     private static void LogVisitor(TABGPlayerServer player, string steamId, DateTime currentTime) {
         if (!Visitors.TryGetValue(player.EpicUserName, out VisitorInfo visitorInfo)) {
-            visitorInfo = new VisitorInfo {
-                DisplayNames = [],
-                SteamIds = [],
-                PlayfabIds = [],
+            visitorInfo = new VisitorInfo { 
                 FirstSeen = currentTime,
                 LastSeen = currentTime
             };
@@ -109,7 +106,9 @@ public static class VisitorLog {
         DatedString.UpdateDatedStringSet(visitorInfo.SteamIds, steamId, currentTime);
         DatedString.UpdateDatedStringSet(visitorInfo.PlayfabIds, player.PlayFabID, currentTime);
         if (ServerClient.m_Server is EnetServer server) {
-            if (server.m_IndexToENetPeerDic.TryGetValue(player.PlayerIndex, out Peer enetPeer)) { DatedString.UpdateDatedStringSet(visitorInfo.IpAddresses, enetPeer.IP, currentTime); }
+            if (server.m_IndexToENetPeerDic.TryGetValue(player.PlayerIndex, out Peer enetPeer)) {
+                DatedString.UpdateDatedStringSet(visitorInfo.IpAddresses, enetPeer.IP, currentTime);
+            }
         }
         visitorInfo.LastSeen = currentTime;
         
