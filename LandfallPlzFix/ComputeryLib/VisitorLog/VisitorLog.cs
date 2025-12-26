@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using ComputeryLib.Utilities;
+using ENet;
 using Newtonsoft.Json;
 using Landfall.Network;
 using PlayFab;
@@ -36,6 +37,7 @@ public struct VisitorInfo {
     public List<DatedString> DisplayNames { get; set; }
     public List<DatedString> SteamIds { get; set; }
     public List<DatedString> PlayfabIds { get; set; }
+    public List<DatedString> IpAddresses { get; set; }
     public DateTime FirstSeen { get; set; }
     public DateTime LastSeen { get; set; }
 }
@@ -57,25 +59,22 @@ public static class VisitorLog {
     
     public static void LogVisitor(TABGPlayerServer player) {
         DateTime currentTime = DateTime.UtcNow;
-        string epicId = player.EpicUserName;
-        string playerName = player.PlayerName;
-        string playfabId = player.PlayFabID;
         
         if (!PlayFabClientAPI.IsClientLoggedIn()) {
             LoginWithCustomIDRequest loginRequest = new LoginWithCustomIDRequest { CustomId = Guid.NewGuid().ToString(), CreateAccount = true };
             PlayFabClientAPI.LoginWithCustomID(loginRequest, 
-                loginResult => { TryToGetSteamFromLeaderboard(epicId, playerName, playfabId, currentTime); },
-                error => { LogVisitor(epicId, playerName, "Unknown...", playfabId, currentTime);
+                loginResult => { TryToGetSteamFromLeaderboard(player, currentTime); },
+                error => { LogVisitor(player, "Unknown...", currentTime);
             });
         }
-        else { TryToGetSteamFromLeaderboard(epicId, playerName, playfabId, currentTime); }
+        else { TryToGetSteamFromLeaderboard(player, currentTime); }
     }
 
-    private static void TryToGetSteamFromLeaderboard(string epicId, string playerName, string playfabId, DateTime currentTime) {
+    private static void TryToGetSteamFromLeaderboard(TABGPlayerServer player, DateTime currentTime) {
         GetLeaderboardAroundPlayerRequest getLeaderboardAroundPlayerRequest = new GetLeaderboardAroundPlayerRequest {
             StatisticName = "PlayerMatchLosses",
             MaxResultsCount = 1,
-            PlayFabId = playfabId,
+            PlayFabId = player.PlayFabID,
             ProfileConstraints = new PlayerProfileViewConstraints { ShowLinkedAccounts = true }
         };
         
@@ -85,18 +84,18 @@ public static class VisitorLog {
                 foreach (LinkedPlatformAccountModel account in entry.Profile.LinkedAccounts) {
                     if (account.Platform != LoginIdentityProvider.Steam) { continue; }
                     string steamId = account.PlatformUserId;
-                    LogVisitor(epicId, playerName, steamId, playfabId, currentTime);
+                    LogVisitor(player, steamId, currentTime);
                     return;
                 }
             }
-            LogVisitor(epicId, playerName, "Unknown...", playfabId, currentTime);
+            LogVisitor(player, "Unknown...", currentTime);
         }, error => {
-            LogVisitor(epicId, playerName, "Unknown...", playfabId, currentTime);
+            LogVisitor(player, "Unknown...", currentTime);
         });
     }
 
-    private static void LogVisitor(string epicId, string playerName, string steamId, string playfabId, DateTime currentTime) {
-        if (!Visitors.TryGetValue(epicId, out VisitorInfo visitorInfo)) {
+    private static void LogVisitor(TABGPlayerServer player, string steamId, DateTime currentTime) {
+        if (!Visitors.TryGetValue(player.EpicUserName, out VisitorInfo visitorInfo)) {
             visitorInfo = new VisitorInfo {
                 DisplayNames = [],
                 SteamIds = [],
@@ -106,12 +105,15 @@ public static class VisitorLog {
             };
         }
 
-        DatedString.UpdateDatedStringSet(visitorInfo.DisplayNames, playerName, currentTime);
+        DatedString.UpdateDatedStringSet(visitorInfo.DisplayNames, player.PlayerName, currentTime);
         DatedString.UpdateDatedStringSet(visitorInfo.SteamIds, steamId, currentTime);
-        DatedString.UpdateDatedStringSet(visitorInfo.PlayfabIds, playfabId, currentTime);
+        DatedString.UpdateDatedStringSet(visitorInfo.PlayfabIds, player.PlayFabID, currentTime);
+        if (ServerClient.m_Server is EnetServer server) {
+            if (server.m_IndexToENetPeerDic.TryGetValue(player.PlayerIndex, out Peer enetPeer)) { DatedString.UpdateDatedStringSet(visitorInfo.IpAddresses, enetPeer.IP, currentTime); }
+        }
         visitorInfo.LastSeen = currentTime;
-
-        Visitors[epicId] = visitorInfo;
+        
+        Visitors[player.EpicUserName] = visitorInfo;
         SaveVisitorLog();
     }
 }
