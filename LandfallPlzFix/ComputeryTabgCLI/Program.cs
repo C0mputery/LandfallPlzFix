@@ -18,7 +18,6 @@ internal static class Program {
     private static NamedPipeServerStream? _pipeServer;
     private static StreamWriter? _pipeWriter;
     
-    private static ListView _playerListView = null!;
     private static LogView _logView = null!;
     private static TextField _commandInput = null!;
 
@@ -45,7 +44,7 @@ internal static class Program {
         _app = Application.Create().Init();
         Window top = new() { BorderStyle = LineStyle.None, };
         top.SetScheme(DefaultScheme);
-        
+
         Attribute lineAttr = new Attribute(AccentColor, Color.Black);
         Scheme lineScheme = new() {
             Normal = lineAttr,
@@ -60,20 +59,35 @@ internal static class Program {
             ReadOnly = lineAttr,
         };
         
-        _playerListView = new ListView {
+        ComputeryButton serverTerminal = new ComputeryButton() {
             X = 0,
             Y = 0,
-            Width = Dim.Absolute(21),
-            Height = Dim.Fill(2),
+            Text = "Server Terminal",
+            Title = "",
+            ShadowStyle = ShadowStyle.None,
             BorderStyle = LineStyle.Rounded,
+            NoDecorations = true,
             SuperViewRendersLineCanvas = true,
         };
-        _playerListView.Border?.SetScheme(lineScheme);
-        top.Add(_playerListView);
+        serverTerminal.Border?.SetScheme(lineScheme);
+        top.Add(serverTerminal);
+        
+        ComputeryButton playersButton = new ComputeryButton() {
+            X = Pos.Right(serverTerminal) - 1,
+            Y = 0,
+            Text = "Players",
+            Title = "",
+            ShadowStyle = ShadowStyle.None,
+            BorderStyle = LineStyle.Rounded,
+            NoDecorations = true,
+            SuperViewRendersLineCanvas = true,
+        };
+        playersButton.Border?.SetScheme(lineScheme);
+        top.Add(playersButton);
         
         _logView = new LogView {
-            X = 20,
-            Y = 0,
+            X = 0,
+            Y = 2,
             Width = Dim.Fill(),
             Height = Dim.Fill(2),
             WordWrap = true,
@@ -109,6 +123,9 @@ internal static class Program {
         };
         _commandInput.Border?.SetScheme(lineScheme);
         top.Add(_commandInput);
+        
+        View settingsView = new View() { Width = Dim.Fill(), Height = Dim.Fill() };
+        settingsView.Add(new Label() { Text = "Players Here", X = Pos.Center(), Y = Pos.Center() });
         
         _ = RunServerAsync(CancellationTokenSource.Token);
         
