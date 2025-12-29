@@ -18,6 +18,7 @@ public class ServerFailPatches {
     
     /// <summary>
     /// Actually protect from malformed packets causing massive lag spikes and shit
+    /// AND mAKE SURE THE PACKETS GET DISCARDED SO NO MEM LEAKS OMG LANDFALL PLEASE
     /// </summary>
     /// <param name="__exception"> harmony provided exception </param>
     /// <returns> null to swallow exception </returns>
