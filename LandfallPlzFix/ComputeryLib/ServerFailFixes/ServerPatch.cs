@@ -1,5 +1,6 @@
 using System;
 using ComputeryLib.Utilities;
+using ENet;
 using HarmonyLib;
 using Landfall.Network;
 
@@ -30,11 +31,19 @@ public class ServerFailPatches {
         return null!;
     }
 
+    // Flush the server and do not de-init enet.
     [HarmonyPrefix]
     [HarmonyPatch(typeof(EnetServer), nameof(EnetServer.Kill))]
     public static bool KillPostfix(EnetServer __instance) {
         __instance.Host.Flush();
         __instance.Host.Dispose();
+        ServerClient.m_Server = null; // We gotta remove this or it will try to reuse the disposed host.
         return false;
+    }
+    
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(ServerClient), nameof(ServerClient.OnApplicationQuit))]
+    public static void OnApplicationQuitPostfix() {
+        Library.Deinitialize(); // Always deinitialize ENet on application quit rather than on server kill.
     }
 }

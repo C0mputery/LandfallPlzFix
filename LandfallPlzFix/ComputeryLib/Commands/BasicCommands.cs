@@ -10,13 +10,16 @@ public static class BasicCommands {
     [ChatCommand("start", "Starts the game with default countdown or specified countdown in seconds.", 1)]
     public static void StartCommand(string[] arguments, TABGPlayerServer? sender, ServerClient world) {
         if (arguments.Length < 1) {
-            world.GameRoomReference.StartCountDown(world.GameRoomReference.CurrentGameSettings.Countdown);
+            world.GameRoomReference.StartCountDown();
             return;
         }
         
-        if (!int.TryParse(arguments[0], out int timeInSeconds) || timeInSeconds < 0) {
-            PlayerInteractionUtilities.PrivateMessageOrConsoleLog("Invalid time specified. Must be a non-negative integer.", sender, world);
+        if (!float.TryParse(arguments[0], out float timeInSeconds) || timeInSeconds < 0) {
+            PlayerInteractionUtilities.PrivateMessageOrConsoleLog("Invalid time specified. Must be a non-negative number.", sender, world);
             return;
+        }
+        if (timeInSeconds == 0) {
+            timeInSeconds = float.Epsilon;
         }
 
         world.GameRoomReference.StartCountDown(timeInSeconds);
