@@ -25,7 +25,7 @@ public class ServerFailPatches {
     [HarmonyFinalizer]
     [HarmonyPatch(typeof(ServerBase), nameof(ServerBase.InternalRecieve))]
     private static Exception InternalRecieveFinalizer(Exception? __exception) {
-        if (__exception == null) { Plugin.Logger.LogError(__exception); }
+        if (__exception != null) { Plugin.Logger.LogError(__exception); }
         return null!;
     }
 }
