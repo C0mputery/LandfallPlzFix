@@ -1,30 +1,16 @@
 using System;
-using ComputeryLib.ConfigImprovements;
 using ComputeryLib.Utilities;
-using ComputeryLib.Utilities.WorldUtility;
 using HarmonyLib;
 using Landfall.Network;
 
 namespace ComputeryLib.ServerFailFixes;
 
-[HarmonyPatch(typeof(ServerBase))]
-public class ServerBasePatch {
+public class ServerFailPatches {
     [HarmonyFinalizer]
-    [HarmonyPatch(nameof(ServerBase.StartServer))]
+    [HarmonyPatch(typeof(EnetServer), nameof(EnetServer.StartServer))]
+    [HarmonyPatch(typeof(UnityTransportServer), nameof(UnityTransportServer.StartServer))]
+    [HarmonyPatch(typeof(JobifiedUnityTransportServer), nameof(JobifiedUnityTransportServer.StartServer))] // this one is never used to my knowlage
     private static Exception StartServerFinalizer(Exception? __exception) {
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Plugin.Logger.LogError($"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-
         if (__exception == null) { return null!; }
         TerminateUtility.TerminateServer("Server failed to start properly. Terminating connection.");
         return __exception;
@@ -36,7 +22,7 @@ public class ServerBasePatch {
     /// <param name="__exception"> harmony provided exception </param>
     /// <returns> null to swallow exception </returns>
     [HarmonyFinalizer]
-    [HarmonyPatch(nameof(ServerBase.InternalRecieve))]
+    [HarmonyPatch(typeof(ServerBase), nameof(ServerBase.InternalRecieve))]
     private static Exception InternalRecieveFinalizer(Exception? __exception) {
         if (__exception == null) { Plugin.Logger.LogError(__exception); }
         return null!;

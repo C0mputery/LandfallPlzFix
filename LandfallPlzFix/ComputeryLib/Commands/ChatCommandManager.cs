@@ -7,7 +7,6 @@ using System.Text;
 using BepInEx;
 using BepInEx.Configuration;
 using ComputeryLib.Utilities;
-using ComputeryLib.Utilities.WorldUtility;
 using Landfall.Network;
 
 namespace ComputeryLib.Commands;
@@ -60,7 +59,7 @@ public static class ChatCommandManager {
             Plugin.Logger.LogInfo($"Unknown command: {commandName}, type help for a list of commands you can use."); 
             return;
         }
-        chatCommandContext.Command(arguments, null, WorldUtilites.GetWorld());
+        chatCommandContext.Command(arguments, null, WorldUtilities.GetWorld());
     }
 
     public static void RegisterCommands() {

@@ -6,7 +6,6 @@ using ComputeryLib.Commands;
 using ComputeryLib.ConfigImprovements;
 using ComputeryLib.ServerFailFixes;
 using ComputeryLib.Utilities;
-using ComputeryLib.Utilities.WorldUtility;
 using ComputeryLib.VisitorLog;
 using HarmonyLib;
 using UnityEngine;
@@ -44,9 +43,10 @@ public class Plugin : BaseUnityPlugin {
     private static void ApplyPatches() {
         Harmony.PatchAll(typeof(GameSettingsPatch));
         Harmony.PatchAll(typeof(ChatMessageCommandPatch));
-        Harmony.PatchAll(typeof(ServerClientPatch));
+        Harmony.PatchAll(typeof(WorldUtilityServerClientPatch));
         Harmony.PatchAll(typeof(RoomInitRequestCommandPatch));
-        Harmony.PatchAll(typeof(ServerBasePatch));
+        Harmony.PatchAll(typeof(ServerFailPatches));
+        Harmony.PatchAll(typeof(TerminateUtilityServerClientPatch));
     }
     
     private static void ApplyConditionalPatches() {
