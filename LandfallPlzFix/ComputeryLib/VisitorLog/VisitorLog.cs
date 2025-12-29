@@ -45,27 +45,31 @@ public struct VisitorInfo() {
 
 public static class VisitorLog {
     private static readonly string VisitorLogPath = Path.Combine(PersistantDataUtility.PersistentDataPath, "VisitorLog.json");
-    private static readonly Dictionary<string, VisitorInfo> Visitors;
+    private static Dictionary<string, VisitorInfo> _visitors = new();
     
-    static VisitorLog() {
+    private static Dictionary<string, VisitorInfo> LoadVisitorLogFromFile() {
         if (File.Exists(VisitorLogPath)) {
             string json = File.ReadAllText(VisitorLogPath);
-            try { Visitors = JsonConvert.DeserializeObject<Dictionary<string, VisitorInfo>>(json) ?? new Dictionary<string, VisitorInfo>(); }
-            catch (JsonException) { Visitors = new Dictionary<string, VisitorInfo>(); }
+            try { return JsonConvert.DeserializeObject<Dictionary<string, VisitorInfo>>(json) ?? new Dictionary<string, VisitorInfo>(); }
+            catch (JsonException) { return new Dictionary<string, VisitorInfo>(); }
         }
-        else { Visitors = new Dictionary<string, VisitorInfo>(); }
+        return new Dictionary<string, VisitorInfo>();
     }
 
-    private static void SaveVisitorLog() { File.WriteAllText(VisitorLogPath, JsonConvert.SerializeObject(Visitors, Formatting.Indented)); }
+    private static void SaveVisitorLog() { File.WriteAllText(VisitorLogPath, JsonConvert.SerializeObject(_visitors, Formatting.Indented)); }
+    
+    private static void SyncFromFile() { _visitors = LoadVisitorLogFromFile(); }
     
     public static uint GetPermissionLevel(string epicUserName) {
-        return Visitors.TryGetValue(epicUserName, out VisitorInfo visitorInfo) ? visitorInfo.PermissionLevel : 0;
+        SyncFromFile();
+        return _visitors.TryGetValue(epicUserName, out VisitorInfo visitorInfo) ? visitorInfo.PermissionLevel : 0;
     }
 
     public static void SetPermissionLevel(string epicUserName, uint level) {
-        if (!Visitors.TryGetValue(epicUserName, out VisitorInfo visitorInfo)) { return; }
+        SyncFromFile();
+        if (!_visitors.TryGetValue(epicUserName, out VisitorInfo visitorInfo)) { return; }
         visitorInfo.PermissionLevel = level;
-        Visitors[epicUserName] = visitorInfo;
+        _visitors[epicUserName] = visitorInfo;
         SaveVisitorLog();
     }
 
@@ -107,7 +111,7 @@ public static class VisitorLog {
     }
 
     private static void LogVisitor(TABGPlayerServer player, string steamId, DateTime currentTime) {
-        if (!Visitors.TryGetValue(player.EpicUserName, out VisitorInfo visitorInfo)) {
+        if (!_visitors.TryGetValue(player.EpicUserName, out VisitorInfo visitorInfo)) {
             visitorInfo = new VisitorInfo { 
                 FirstSeen = currentTime,
                 LastSeen = currentTime
@@ -124,7 +128,7 @@ public static class VisitorLog {
         }
         visitorInfo.LastSeen = currentTime;
         
-        Visitors[player.EpicUserName] = visitorInfo;
+        _visitors[player.EpicUserName] = visitorInfo;
         SaveVisitorLog();
     }
 }
