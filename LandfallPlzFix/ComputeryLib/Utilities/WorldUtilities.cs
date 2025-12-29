@@ -1,4 +1,5 @@
 using System;
+using HarmonyLib;
 using Landfall.Network;
 
 namespace ComputeryLib.Utilities;
@@ -14,4 +15,8 @@ public static class WorldUtilities {
     public static ServerClient GetWorld() { return _worldClient == null ? throw new InvalidOperationException("World client has not been set yet.") : _worldClient; }
     
     internal static void SetWorldClient(ServerClient world) { _worldClient = world; }
+    
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(ServerClient), nameof(ServerClient.Awake))]
+    public static void AwakePrefix(ref ServerClient __instance) { WorldUtilities.SetWorldClient(__instance); }
 }

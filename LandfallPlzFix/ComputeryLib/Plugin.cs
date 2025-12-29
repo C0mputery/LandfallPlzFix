@@ -35,7 +35,6 @@ public class Plugin : BaseUnityPlugin {
         }
         
         ApplyPatches();
-        ApplyConditionalPatches();
         
         Logger.LogInfo($"Applied patches.");
     }
@@ -43,15 +42,14 @@ public class Plugin : BaseUnityPlugin {
     private static void ApplyPatches() {
         Harmony.PatchAll(typeof(GameSettingsPatch));
         Harmony.PatchAll(typeof(ChatMessageCommandPatch));
-        Harmony.PatchAll(typeof(WorldUtilityServerClientPatch));
+        Harmony.PatchAll(typeof(WorldUtilities));
         Harmony.PatchAll(typeof(RoomInitRequestCommandPatch));
         Harmony.PatchAll(typeof(ServerFailPatches));
-        Harmony.PatchAll(typeof(TerminateUtilityServerClientPatch));
+        Harmony.PatchAll(typeof(TerminateUtility));
         Harmony.PatchAll(typeof(GameRoomPatch));
-    }
-    
-    private static void ApplyConditionalPatches() {
-        if (Config.Bind("Log", "ImproveLoggers", true, "Removes a lot of the junk logs you prob don't care about").Value) { LoggerImprover.ApplyLoggerPatches(); }
+        Harmony.PatchAll(typeof(TickRateUtility));
+        LoggerImprover.ApplyLoggerPatches();
+
     }
 
     private void Start() { ChatCommandManager.RegisterCommands(); }
