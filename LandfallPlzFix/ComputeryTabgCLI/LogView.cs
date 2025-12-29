@@ -10,6 +10,7 @@ namespace ComputeryTabgCLI;
 /// </summary>
 public class LogView : View {
     private readonly List<string> _lines = new();
+    private readonly List<int> _lineHeights = new();
     private readonly Lock _lock = new();
     private int _maxLines = 10000;
     private int _topLine;
@@ -87,12 +88,7 @@ public class LogView : View {
     /// Add a line to the log view.
     /// </summary>
     public void AddLine(string line) {
-        lock (_lock) {
-            _lines.Add(line);
-            TrimBuffer();
-            _needsRewrap = true;
-            SetNeedsDraw();
-        }
+        AddLines(new[] { line });
     }
 
     /// <summary>
@@ -100,9 +96,28 @@ public class LogView : View {
     /// </summary>
     public void AddLines(IEnumerable<string> lines) {
         lock (_lock) {
-            _lines.AddRange(lines);
+            if (_needsRewrap || _lastWidth <= 0) {
+                _lines.AddRange(lines);
+                TrimBuffer();
+                _needsRewrap = true;
+                SetNeedsDraw();
+                return;
+            }
+
+            foreach (var line in lines) {
+                _lines.Add(line);
+                int height = WrapAndAddLine(line, _lastWidth);
+                _lineHeights.Add(height);
+            }
+            
             TrimBuffer();
-            _needsRewrap = true;
+            
+            if (_autoScroll) {
+                int height = GetVisibleHeight();
+                int maxScroll = Math.Max(0, _wrappedLines.Count - height);
+                _topLine = maxScroll;
+            }
+            
             SetNeedsDraw();
         }
     }
@@ -114,6 +129,7 @@ public class LogView : View {
         lock (_lock) {
             _lines.Clear();
             _wrappedLines.Clear();
+            _lineHeights.Clear();
             _topLine = 0;
             _needsRewrap = false;
             _lastWidth = -1;
@@ -123,43 +139,59 @@ public class LogView : View {
 
     private void TrimBuffer() {
         int excess = _lines.Count - _maxLines;
-        if (excess > 0) {
-            _lines.RemoveRange(0, excess);
+        if (excess <= 0) return;
+
+        if (!_needsRewrap && _lineHeights.Count == _lines.Count) {
+            int wrappedToRemove = 0;
+            for (int i = 0; i < excess; i++) {
+                wrappedToRemove += _lineHeights[i];
+            }
+            _lineHeights.RemoveRange(0, excess);
+            _wrappedLines.RemoveRange(0, wrappedToRemove);
+            _topLine = Math.Max(0, _topLine - wrappedToRemove);
+        } else {
+            _needsRewrap = true;
         }
+        
+        _lines.RemoveRange(0, excess);
     }
 
     private int GetVisibleHeight() {
         return Math.Max(1, Viewport.Height);
     }
 
-    private void WrapLines(int width) {
-        _wrappedLines.Clear();
-        
-        if (!_wordWrap || width <= 0) {
-            _wrappedLines.AddRange(_lines);
-            return;
+    private int WrapAndAddLine(string line, int width) {
+        if (string.IsNullOrEmpty(line)) {
+            _wrappedLines.Add(string.Empty);
+            return 1;
         }
 
+        if (!_wordWrap || line.Length <= width) {
+            _wrappedLines.Add(line);
+            return 1;
+        }
+
+        int count = 0;
+        ReadOnlySpan<char> span = line.AsSpan();
+        for (int i = 0; i < span.Length; i += width) {
+            int length = Math.Min(width, span.Length - i);
+            _wrappedLines.Add(new string(span.Slice(i, length)));
+            count++;
+        }
+        return count;
+    }
+
+    private void WrapLines(int width) {
+        _wrappedLines.Clear();
+        _lineHeights.Clear();
+        
         // Pre-allocate estimated capacity
         _wrappedLines.EnsureCapacity(_lines.Count);
+        _lineHeights.EnsureCapacity(_lines.Count);
 
         foreach (string line in _lines) {
-            if (string.IsNullOrEmpty(line)) {
-                _wrappedLines.Add(string.Empty);
-                continue;
-            }
-
-            if (line.Length <= width) {
-                _wrappedLines.Add(line);
-                continue;
-            }
-
-            // Wrap the line using AsSpan to avoid intermediate allocations
-            ReadOnlySpan<char> span = line.AsSpan();
-            for (int i = 0; i < span.Length; i += width) {
-                int length = Math.Min(width, span.Length - i);
-                _wrappedLines.Add(new string(span.Slice(i, length)));
-            }
+            int height = WrapAndAddLine(line, width);
+            _lineHeights.Add(height);
         }
     }
 
@@ -264,12 +296,12 @@ public class LogView : View {
         }
 
         if (mouseEvent.Flags.HasFlag(MouseFlags.WheeledDown)) {
-            ScrollDown(1);
+            ScrollDown();
             return true;
         }
         
         if (mouseEvent.Flags.HasFlag(MouseFlags.WheeledUp)) {
-            ScrollUp(1);
+            ScrollUp();
             return true;
         }
 

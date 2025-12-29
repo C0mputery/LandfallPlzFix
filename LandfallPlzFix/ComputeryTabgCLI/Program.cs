@@ -54,9 +54,21 @@ internal static class Program {
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             SuperViewRendersLineCanvas = true,
+            CanFocus = true,
         };
         top.Add(serverView);
 
+        _commandInput = new TextField {
+            X = 0,
+            Y = Pos.AnchorEnd(3),
+            Width = Dim.Fill(),
+            Height = Dim.Absolute(3),
+            BorderStyle = LineStyle.Rounded,
+            SuperViewRendersLineCanvas = true,
+        };
+        _commandInput.Border?.SetScheme(LineScheme);
+        serverView.Add(_commandInput);
+        
         _logView = new LogView {
             X = 0,
             Y = 0,
@@ -69,31 +81,21 @@ internal static class Program {
         };
         _logView.Border?.SetScheme(LineScheme);
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
-            List<string> linesToAdd = [];
+            List<string>? linesToAdd = null;
             lock (LogBufferLock) {
                 if (LogBuffer.Count > 0) {
-                    linesToAdd.AddRange(LogBuffer);
+                    linesToAdd = new List<string>(LogBuffer);
                     LogBuffer.Clear();
                 }
             }
             
-            if (linesToAdd.Count > 0) {
+            if (linesToAdd != null) {
                 _logView.AddLines(linesToAdd);
             }
             
             return true;
         });
         serverView.Add(_logView);
-        _commandInput = new TextField {
-            X = 0,
-            Y = Pos.AnchorEnd(3),
-            Width = Dim.Fill(),
-            Height = Dim.Absolute(3),
-            BorderStyle = LineStyle.Rounded,
-            SuperViewRendersLineCanvas = true,
-        };
-        _commandInput.Border?.SetScheme(LineScheme);
-        serverView.Add(_commandInput);
         
         // Settings View
         View settingsView = new View() { Width = Dim.Fill(), Height = Dim.Fill(), Visible = false, };
