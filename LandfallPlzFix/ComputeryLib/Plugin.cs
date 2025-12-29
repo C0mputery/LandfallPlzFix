@@ -22,14 +22,14 @@ public class Plugin : BaseUnityPlugin {
     public static readonly Harmony Harmony = new Harmony(PluginInfo.PLUGIN_GUID);
     
     private void Awake() {
-        bool usingCli = ArgumentUtility.TryGetArgument("-pipeName", out string? pipeName);
-        if (usingCli) { Harmony.PatchAll(typeof(ManualLogSourcePatch)); }
+        bool usingTui = ArgumentUtility.TryGetArgument("-pipeName", out string? pipeName);
+        if (usingTui) { Harmony.PatchAll(typeof(ManualLogSourcePatch)); }
         
         Logger = base.Logger;
         Config = base.Config;
         
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
-        if (usingCli) {
+        if (usingTui) {
             Logger.LogInfo("Detected CLI, initializing pipe handler.");
             PipeHandler.CreatePipe(pipeName!);
         }

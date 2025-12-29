@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using ComputeryLib.CLI;
 using ComputeryLib.Utilities;
 using ENet;
 using Newtonsoft.Json;
@@ -9,39 +10,6 @@ using PlayFab;
 using PlayFab.ClientModels;
 
 namespace ComputeryLib.VisitorLog;
-
-public struct DatedString {
-    public string Value { get; set; }
-    public DateTime FirstSeen { get; set; }
-    public DateTime LastSeen { get; set; }
-    
-    public static void UpdateDatedStringSet(List<DatedString> set, string value, DateTime currentTime) {
-        if (set.Count > 0) {
-            int lastIndex = set.Count - 1;
-            DatedString lastEntry = set[lastIndex];
-            if (lastEntry.Value == value) {
-                lastEntry.LastSeen = currentTime;
-                set[lastIndex] = lastEntry;
-                return;
-            }
-        }
-        set.Add(new DatedString {
-            Value = value,
-            FirstSeen = currentTime,
-            LastSeen = currentTime
-        });
-    }
-}
-
-public struct VisitorInfo() {
-    public List<DatedString> DisplayNames { get; set; } = [];
-    public List<DatedString> SteamIds { get; set; } = [];
-    public List<DatedString> PlayfabIds { get; set; } = [];
-    public List<DatedString> IpAddresses { get; set; } = [];
-    public DateTime FirstSeen { get; set; }
-    public DateTime LastSeen { get; set; }
-    public uint PermissionLevel { get; set; } = 0;
-}
 
 public static class VisitorLog {
     private static readonly string VisitorLogPath = Path.Combine(PersistantDataUtility.PersistentDataPath, "VisitorLog.json");
@@ -130,5 +98,10 @@ public static class VisitorLog {
         
         _visitors[player.EpicUserName] = visitorInfo;
         SaveVisitorLog();
+        
+        PipeHandler? pipeHandler = PipeHandler.Instance;
+        if (pipeHandler == null) { return; }
+        string json = JsonConvert.SerializeObject(new { epicUserName = player.EpicUserName, visitorInfo });
+        pipeHandler.SendMessage(json);
     }
 }

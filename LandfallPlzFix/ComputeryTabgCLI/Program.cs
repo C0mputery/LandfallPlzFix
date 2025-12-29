@@ -1,5 +1,7 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO.Pipes;
+using System.Text.Json;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
@@ -9,20 +11,29 @@ using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace ComputeryTabgCLI;
 
+public class PlayerListEntry(string epicUserName, VisitorInfo info) {
+    public readonly string EpicUserName = epicUserName;
+    public VisitorInfo Info = info;
+    public override string ToString() { return $"{EpicUserName} - Permission Level: {Info.PermissionLevel}"; }
+}
+
 internal static class Program {
     private static readonly CancellationTokenSource CancellationTokenSource = new();
-    private static readonly List<string> LogBuffer = new();
-    private static readonly Lock LogBufferLock = new();
     private static Process? _serverProcess;
     private static IApplication _app = null!;
     private static NamedPipeServerStream? _pipeServer;
     private static StreamWriter? _pipeWriter;
+    
+    private static Window _top = null!;
 
+    private static View _serverView = null!;
     private static LogView _logView = null!;
     private static TextField _commandInput = null!;
-    private static View _serverView = null!;
-    private static View _settingsView = null!;
-
+    
+    private static View _playerView = null!;
+    private static ListView _playersListView = null!;
+    private static readonly ObservableCollection<PlayerListEntry> Players = [];
+    
     private static readonly Color AccentColor = new (0x8B, 0xE0, 0xFF);
     private static Scheme DefaultScheme => new() { };
     private static readonly Attribute LineAttr = new Attribute(AccentColor, Color.Black);
@@ -39,29 +50,28 @@ internal static class Program {
         ReadOnly = LineAttr,
     };
 
-    private static void LogLine(string text) { lock (LogBufferLock) { LogBuffer.Add(text); } }
 
     public static void Main(string[] args) {
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         Console.CancelKeyPress += OnCancelKeyPress;
 
         _app = Application.Create().Init();
-        Window top = new() { BorderStyle = LineStyle.None, };
-        top.SetScheme(DefaultScheme);
+        _top = new() { BorderStyle = LineStyle.None, };
+        _top.SetScheme(DefaultScheme);
 
-        SetupServerView(top);
-        SetupSettingsView(top);
-        SetupButtons(top);
+        SetupServerView();
+        SetupPlayerView();
+        SetupButtons();
 
         _ = RunServerAsync(CancellationTokenSource.Token);
 
-        _app.Run(top);
-        top.Dispose();
+        _app.Run(_top);
+        _top.Dispose();
         _app.Dispose();
         CleanupServer();
     }
 
-    private static void SetupServerView(Window top) {
+    private static void SetupServerView() {
         _serverView = new View() {
             X = 0,
             Y = 2,
@@ -70,13 +80,8 @@ internal static class Program {
             SuperViewRendersLineCanvas = true,
             CanFocus = true,
         };
-        top.Add(_serverView);
+        _top.Add(_serverView);
 
-        SetupCommandInput(_serverView);
-        SetupLogView(_serverView);
-    }
-
-    private static void SetupCommandInput(View serverView) {
         _commandInput = new TextField {
             X = 0,
             Y = Pos.AnchorEnd(3),
@@ -86,10 +91,8 @@ internal static class Program {
             SuperViewRendersLineCanvas = true,
         };
         _commandInput.Border?.SetScheme(LineScheme);
-        serverView.Add(_commandInput);
-    }
-
-    private static void SetupLogView(View serverView) {
+        _serverView.Add(_commandInput);
+        
         _logView = new LogView {
             X = 0,
             Y = 0,
@@ -102,38 +105,37 @@ internal static class Program {
         };
         _logView.Border?.SetScheme(LineScheme);
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
-            List<string>? linesToAdd = null;
-            lock (LogBufferLock) {
-                if (LogBuffer.Count > 0) {
-                    linesToAdd = new List<string>(LogBuffer);
-                    LogBuffer.Clear();
-                }
-            }
-
-            if (linesToAdd != null) {
-                _logView.AddLines(linesToAdd);
-            }
-
+            _logView.FlushLogBuffer();
             return true;
         });
-        serverView.Add(_logView);
+        _serverView.Add(_logView);
     }
 
-    private static void SetupSettingsView(Window top) {
-        _settingsView = new View() { Width = Dim.Fill(), Height = Dim.Fill(), Visible = false, };
-        _settingsView.Add(new Label() { Text = "Players Here", X = Pos.Center(), Y = Pos.Center() });
-        top.Add(_settingsView);
+    private static void SetupPlayerView() {
+        _playerView = new View() { 
+            X = 0,
+            Y = 2,
+            Width = Dim.Fill(), 
+            Height = Dim.Fill(), 
+            Visible = false,
+            SuperViewRendersLineCanvas = true,
+        };
+        _top.Add(_playerView);
+        
+        _playersListView = new ListView {
+            X = 0,
+            Y = 0,
+            Width = 30,
+            Height = Dim.Fill(),
+            BorderStyle = LineStyle.Rounded,
+            SuperViewRendersLineCanvas = true,
+        };
+        _playersListView.Border?.SetScheme(LineScheme);
+        _playersListView.SetSource(Players);
+        _playerView.Add(_playersListView);
     }
 
-    private static void SetupButtons(Window top) {
-        ComputeryButton serverTerminal = CreateServerTerminalButton(_serverView, _settingsView);
-        top.Add(serverTerminal);
-
-        ComputeryButton playersButton = CreatePlayersButton(serverTerminal, _serverView, _settingsView);
-        top.Add(playersButton);
-    }
-
-    private static ComputeryButton CreateServerTerminalButton(View serverView, View settingsView) {
+    private static void SetupButtons() {
         ComputeryButton serverTerminal = new ComputeryButton() {
             X = 0,
             Y = 0,
@@ -147,14 +149,12 @@ internal static class Program {
         };
         serverTerminal.Border?.SetScheme(LineScheme);
         serverTerminal.Accepting += (_, e) => {
-            settingsView.Visible = false;
-            serverView.Visible = true;
+            _playerView.Visible = false;
+            _serverView.Visible = true;
             e.Handled = true;
         };
-        return serverTerminal;
-    }
+        _top.Add(serverTerminal);
 
-    private static ComputeryButton CreatePlayersButton(ComputeryButton serverTerminal, View serverView, View settingsView) {
         ComputeryButton playersButton = new ComputeryButton() {
             X = Pos.Right(serverTerminal) - 1,
             Y = 0,
@@ -167,11 +167,11 @@ internal static class Program {
         };
         playersButton.Border?.SetScheme(LineScheme);
         playersButton.Accepting += (_, e) => {
-            settingsView.Visible = true;
-            serverView.Visible = false;
+            _playerView.Visible = true;
+            _serverView.Visible = false;
             e.Handled = true;
         };
-        return playersButton;
+        _top.Add(playersButton);
     }
     
     private static void OnProcessExit(object? sender, EventArgs e) { CleanupServer(); }
@@ -213,9 +213,9 @@ internal static class Program {
         _ = HandlePipeCommunicationAsync(pipeGuid, cancellationToken);
         SetupCommandInputHandler();
 
-        LogLine("Unity process started.");
+        _logView.LogLine("Unity process started.");
         try { await _serverProcess!.WaitForExitAsync(cancellationToken); } catch { /* Ignored */ }
-        LogLine("Unity process exited.");
+        _logView.LogLine("Unity process exited.");
     }
 
     private static void StartServerProcess(string unityAppPath, string pipeGuid) {
@@ -239,33 +239,58 @@ internal static class Program {
         _serverProcess.BeginErrorReadLine();
 
         _serverProcess.OutputDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) { LogLine(e.Data); }
+            if (!string.IsNullOrEmpty(e.Data)) { _logView.LogLine(e.Data); }
         };
 
         _serverProcess.ErrorDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) { LogLine(e.Data); }
+            if (!string.IsNullOrEmpty(e.Data)) { _logView.LogLine(e.Data); }
         };
     }
 
     private static async Task HandlePipeCommunicationAsync(string pipeGuid, CancellationToken cancellationToken) {
         try {
             _pipeServer = new NamedPipeServerStream(pipeGuid, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-            LogLine("Waiting for Unity to connect...");
+            _logView.LogLine("Waiting for Unity to connect...");
 
             await _pipeServer.WaitForConnectionAsync(cancellationToken);
             _pipeWriter = new StreamWriter(_pipeServer) { AutoFlush = true };
-            LogLine("Unity connected to pipe.");
+            _logView.LogLine("Unity connected to pipe.");
 
             await ReadUnityMessagesAsync(cancellationToken);
         }
-        catch (Exception ex) { LogLine($"Pipe error: {ex.Message}"); }
+        catch (Exception ex) { _logView.LogLine($"Pipe error: {ex.Message}"); }
     }
 
     private static async Task ReadUnityMessagesAsync(CancellationToken cancellationToken) {
         using StreamReader reader = new StreamReader(_pipeServer!, leaveOpen: true);
         while (!cancellationToken.IsCancellationRequested && _pipeServer?.IsConnected == true) {
             string? line = await reader.ReadLineAsync(cancellationToken);
-            if (line != null) { LogLine(line); }
+            if (line != null) {
+                try {
+                    using JsonDocument doc = JsonDocument.Parse(line);
+                    JsonElement root = doc.RootElement;
+                    
+                    if (root.TryGetProperty("epicUserName", out JsonElement epicUserNameElement) && root.TryGetProperty("visitorInfo", out JsonElement visitorInfoElement)) {
+                        string? epicUserName = epicUserNameElement.GetString();
+                        if (string.IsNullOrEmpty(epicUserName)) { continue; }
+                        VisitorInfo visitorInfo = JsonSerializer.Deserialize<VisitorInfo>(visitorInfoElement.GetRawText())!;
+                        PlayerListEntry entry = new PlayerListEntry(epicUserName, visitorInfo);
+                        _app.Invoke(() => {
+                            int existingIndex = -1;
+                            for (int i = 0; i < Players.Count; i++) {
+                                if (Players[i].EpicUserName != epicUserName) { continue; }
+                                existingIndex = i;
+                                break;
+                            }
+                            if (existingIndex != -1) { Players[existingIndex] = entry; }
+                            else { Players.Add(entry); }
+                        });
+                    }
+                }
+                catch {
+                    // Not a JSON message or not visitor info, ignore
+                }
+            }
         }
     }
 
@@ -280,7 +305,7 @@ internal static class Program {
     private static void SendCommandToServer(string command) {
         if (!string.IsNullOrWhiteSpace(command) && _pipeWriter != null) {
             try { _pipeWriter.WriteLine(command); }
-            catch (Exception ex) { LogLine($"Failed to send command: {ex.Message}"); }
+            catch (Exception ex) { _logView.LogLine($"Failed to send command: {ex.Message}"); }
         }
     }
 }

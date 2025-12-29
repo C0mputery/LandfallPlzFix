@@ -12,6 +12,8 @@ public class LogView : View {
     private readonly List<string> _lines = new();
     private readonly List<int> _lineHeights = new();
     private readonly Lock _lock = new();
+    private readonly List<string> _logBuffer = new();
+    private readonly Lock _logBufferLock = new();
     private int _maxLines = 10000;
     private int _topLine;
     private bool _autoScroll = true;
@@ -81,6 +83,33 @@ public class LogView : View {
             lock (_lock) {
                 return _lines.Count;
             }
+        }
+    }
+
+    /// <summary>
+    /// Queue a line to be added to the log view (thread-safe).
+    /// </summary>
+    public void LogLine(string text) {
+        lock (_logBufferLock) {
+            _logBuffer.Add(text);
+        }
+    }
+
+    /// <summary>
+    /// Flush the log buffer and add all queued lines to the view.
+    /// Should be called periodically from the main thread.
+    /// </summary>
+    public void FlushLogBuffer() {
+        List<string>? linesToAdd = null;
+        lock (_logBufferLock) {
+            if (_logBuffer.Count > 0) {
+                linesToAdd = new List<string>(_logBuffer);
+                _logBuffer.Clear();
+            }
+        }
+
+        if (linesToAdd != null) {
+            AddLines(linesToAdd);
         }
     }
 
