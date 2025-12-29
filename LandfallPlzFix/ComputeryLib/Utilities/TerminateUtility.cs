@@ -28,7 +28,7 @@ public static class TerminateUtility {
     }
     
     [HarmonyTranspiler]
-    [HarmonyPatch(nameof(GameRoom.EndMatch), typeof(TeamStanding))]
+    [HarmonyPatch(typeof(GameRoom), nameof(GameRoom.EndMatch), typeof(TeamStanding))]
     public static IEnumerable<CodeInstruction> FixLandLog(IEnumerable<CodeInstruction> instructions) {
         CodeMatcher matcher = new CodeMatcher(instructions);
         matcher.MatchForward(false, new CodeMatch(OpCodes.Ldc_R4, 15f));
