@@ -101,7 +101,7 @@ public static class VisitorLog {
         
         PipeHandler? pipeHandler = PipeHandler.Instance;
         if (pipeHandler != null) {
-            string json = JsonConvert.SerializeObject(new { epicUserName = player.EpicUserName.ToString(), visitorInfo });
+            string json = JsonConvert.SerializeObject(new { type = "PlayerJoined", epicUserName = player.EpicUserName.ToString(), visitorInfo });
             pipeHandler.SendMessage(json);
         }
     }

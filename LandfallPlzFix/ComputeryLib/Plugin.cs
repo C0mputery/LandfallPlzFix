@@ -48,6 +48,7 @@ public class Plugin : BaseUnityPlugin {
         Harmony.PatchAll(typeof(TerminateUtility));
         Harmony.PatchAll(typeof(GameRoomPatch));
         Harmony.PatchAll(typeof(TickRateUtility));
+        Harmony.PatchAll(typeof(RemovePlayerGameRoomPatch));
         LoggerImprover.ApplyLoggerPatches();
 
     }

@@ -101,7 +101,8 @@ internal static class Program {
             WordWrap = true,
             AutoScroll = true,
             MaxLines = 10000,
-            SuperViewRendersLineCanvas = true
+            SuperViewRendersLineCanvas = true,
+            CanFocus = true,
         };
         _logView.Border?.SetScheme(LineScheme);
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
@@ -270,21 +271,37 @@ internal static class Program {
                     using JsonDocument doc = JsonDocument.Parse(line);
                     JsonElement root = doc.RootElement;
                     
-                    if (root.TryGetProperty("epicUserName", out JsonElement epicUserNameElement) && root.TryGetProperty("visitorInfo", out JsonElement visitorInfoElement)) {
-                        string? epicUserName = epicUserNameElement.GetString();
-                        if (string.IsNullOrEmpty(epicUserName)) { continue; }
-                        VisitorInfo visitorInfo = JsonSerializer.Deserialize<VisitorInfo>(visitorInfoElement.GetRawText())!;
-                        PlayerListEntry entry = new PlayerListEntry(epicUserName, visitorInfo);
-                        _app.Invoke(() => {
-                            int existingIndex = -1;
-                            for (int i = 0; i < Players.Count; i++) {
-                                if (Players[i].EpicUserName != epicUserName) { continue; }
-                                existingIndex = i;
-                                break;
-                            }
-                            if (existingIndex != -1) { Players[existingIndex] = entry; }
-                            else { Players.Add(entry); }
-                        });
+                    if (root.TryGetProperty("type", out JsonElement typeElement)) {
+                        string? messageType = typeElement.GetString();
+                        _logView.LogLine($"Received message of type: {messageType}");
+                        
+                        if (messageType == "PlayerJoined" && root.TryGetProperty("epicUserName", out JsonElement epicUserNameElement) && root.TryGetProperty("visitorInfo", out JsonElement visitorInfoElement)) {
+                            string? epicUserName = epicUserNameElement.GetString();
+                            if (string.IsNullOrEmpty(epicUserName)) { continue; }
+                            VisitorInfo visitorInfo = JsonSerializer.Deserialize<VisitorInfo>(visitorInfoElement.GetRawText())!;
+                            PlayerListEntry entry = new PlayerListEntry(epicUserName, visitorInfo);
+                            _app.Invoke(() => {
+                                int existingIndex = -1;
+                                for (int i = 0; i < Players.Count; i++) {
+                                    if (Players[i].EpicUserName != epicUserName) { continue; }
+                                    existingIndex = i;
+                                    break;
+                                }
+                                if (existingIndex != -1) { Players[existingIndex] = entry; }
+                                else { Players.Add(entry); }
+                            });
+                        }
+                        else if (messageType == "PlayerLeft" && root.TryGetProperty("epicUserName", out JsonElement playerLeftEpicUserNameElement)) {
+                            string? epicUserName = playerLeftEpicUserNameElement.GetString();
+                            if (string.IsNullOrEmpty(epicUserName)) { continue; }
+                            _app.Invoke(() => {
+                                for (int i = 0; i < Players.Count; i++) {
+                                    if (Players[i].EpicUserName != epicUserName) { continue; }
+                                    Players.RemoveAt(i);
+                                    break;
+                                }
+                            });
+                        }
                     }
                 }
                 catch (Exception e) {
