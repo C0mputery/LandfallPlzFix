@@ -20,7 +20,6 @@ public class PipeHandler : MonoBehaviour {
         Instance = pipeHandlerObject.AddComponent<PipeHandler>();
         Instance.InitializePipe(pipeName);
     }
-
     
     private NamedPipeClientStream? _pipeClient;
     private StreamWriter? _pipeWriter;
