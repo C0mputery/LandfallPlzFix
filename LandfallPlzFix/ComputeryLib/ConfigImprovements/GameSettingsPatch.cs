@@ -5,7 +5,7 @@ using HarmonyLib;
 using Landfall.Network;
 using UnityEngine;
 
-namespace ComputeryLib.ConfigImprover;
+namespace ComputeryLib.ConfigImprovements;
 
 [HarmonyPatch(typeof(GameSettings))]
 public static class GameSettingsPatch {

@@ -1,10 +1,10 @@
-﻿using System.IO;
-using BepInEx;
+﻿using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using ComputeryLib.CLI;
 using ComputeryLib.Commands;
-using ComputeryLib.ConfigImprover;
+using ComputeryLib.ConfigImprovements;
+using ComputeryLib.ServerFailFixes;
 using ComputeryLib.Utilities;
 using ComputeryLib.Utilities.WorldUtility;
 using ComputeryLib.VisitorLog;
@@ -46,6 +46,7 @@ public class Plugin : BaseUnityPlugin {
         Harmony.PatchAll(typeof(ChatMessageCommandPatch));
         Harmony.PatchAll(typeof(ServerClientPatch));
         Harmony.PatchAll(typeof(RoomInitRequestCommandPatch));
+        Harmony.PatchAll(typeof(ServerBasePatch));
     }
     
     private static void ApplyConditionalPatches() {
