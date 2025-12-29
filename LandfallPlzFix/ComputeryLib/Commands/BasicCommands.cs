@@ -14,8 +14,8 @@ public static class BasicCommands {
             return;
         }
         
-        if (!int.TryParse(arguments[0], out int timeInSeconds) || timeInSeconds <= 0) {
-            PlayerInteractionUtilities.PrivateMessageOrConsoleLog("Invalid time specified. Must be a positive integer.", sender, world);
+        if (!int.TryParse(arguments[0], out int timeInSeconds) || timeInSeconds < 0) {
+            PlayerInteractionUtilities.PrivateMessageOrConsoleLog("Invalid time specified. Must be a non-negative integer.", sender, world);
             return;
         }
 

@@ -12,6 +12,7 @@ public class ServerFailPatches {
     [HarmonyPatch(typeof(JobifiedUnityTransportServer), nameof(JobifiedUnityTransportServer.StartServer))] // this one is never used to my knowlage
     private static Exception StartServerFinalizer(Exception? __exception) {
         if (__exception == null) { return null!; }
+        Plugin.Logger.LogError(__exception);
         TerminateUtility.TerminateServer("Server failed to start properly. Terminating connection.");
         return __exception;
     }
