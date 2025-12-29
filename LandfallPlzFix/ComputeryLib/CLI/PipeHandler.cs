@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 using ComputeryLib.Commands;
+using ComputeryLib.Utilities;
+using Landfall.Network;
 using UnityEngine;
 
 namespace ComputeryLib.CLI;
@@ -25,6 +28,7 @@ public class PipeHandler : MonoBehaviour {
     private StreamWriter? _pipeWriter;
     private CancellationTokenSource? _cts;
     private readonly ConcurrentQueue<string> _messageQueue = new();
+    private float _nextPlayerListUpdate;
 
     public void InitializePipe(string pipeName) {
         _cts = new CancellationTokenSource();
@@ -65,6 +69,18 @@ public class PipeHandler : MonoBehaviour {
 
     public void Update() {
         while (_messageQueue.TryDequeue(out string? message)) { ChatCommandManager.HandleConsoleMessage(message); }
+        
+        if (Time.time >= _nextPlayerListUpdate && WorldUtilities.TryGetWorld(out ServerClient? world)) {
+            _nextPlayerListUpdate = Time.time + 15f;
+            List<TABGPlayerServer> players = world!.GameRoomReference.Players;
+            string[] epicUsernames = new string[players.Count];
+            for (int index = 0; index < players.Count; index++) {
+                TABGPlayerServer player = players[index];
+                epicUsernames[index] = player.EpicUserName;
+            }
+            string json = JsonUtility.ToJson(new { type = "playerList", players = epicUsernames });
+            SendMessage(json);
+        }
     }
     
     private void OnDestroy() {

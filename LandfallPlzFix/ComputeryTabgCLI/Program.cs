@@ -21,9 +21,8 @@ internal static class Program {
     
     private static Window _top = null!;
 
-    private static View _serverView = null!;
-    private static LogView _logView = null!;
-    private static TextField _commandInput = null!;
+    private static ServerView _serverView = null!;
+    private static VisitorLogView _visitorLogView = null!;
     
     private static readonly Color AccentColor = new (0x8B, 0xE0, 0xFF);
     private static Scheme DefaultScheme => new() { };
@@ -62,50 +61,27 @@ internal static class Program {
     }
 
     private static void SetupServerView() {
-        _serverView = new View() {
-            X = 0,
-            Y = 2,
-            Width = Dim.Fill(),
-            Height = Dim.Fill(),
-            SuperViewRendersLineCanvas = true,
-            CanFocus = true,
-        };
+        _serverView = new ServerView();
+        _serverView.ApplyBorderScheme(LineScheme);
+        _serverView.CommandEntered += SendCommandToServer;
         _top.Add(_serverView);
-
-        _commandInput = new TextField {
-            X = 0,
-            Y = Pos.AnchorEnd(3),
-            Width = Dim.Fill(),
-            Height = Dim.Absolute(3),
-            BorderStyle = LineStyle.Rounded,
-            SuperViewRendersLineCanvas = true,
-        };
-        _commandInput.Border?.SetScheme(LineScheme);
-        _serverView.Add(_commandInput);
         
-        _logView = new LogView {
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = Dim.Fill(2),
-            WordWrap = true,
-            AutoScroll = true,
-            MaxLines = 10000,
-            SuperViewRendersLineCanvas = true,
-        };
-        _logView.Border?.SetScheme(LineScheme);
+        _visitorLogView = new VisitorLogView();
+        _visitorLogView.ApplyBorderScheme(LineScheme);
+        _visitorLogView.Visible = false;
+        _top.Add(_visitorLogView);
+        
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
-            _logView.FlushLogBuffer();
+            _serverView.FlushLogBuffer();
             return true;
         });
-        _serverView.Add(_logView);
     }
 
     private static void SetupButtons() {
         ComputeryButton serverTerminal = new ComputeryButton() {
             X = 0,
             Y = 0,
-            Text = "Server Terminal",
+            Text = "Terminal",
             Title = "",
             ShadowStyle = ShadowStyle.None,
             BorderStyle = LineStyle.Rounded,
@@ -116,26 +92,28 @@ internal static class Program {
         serverTerminal.Border?.SetScheme(LineScheme);
         serverTerminal.Accepting += (_, e) => {
             _serverView.Visible = true;
+            _visitorLogView.Visible = false;
             e.Handled = true;
         };
         _top.Add(serverTerminal);
 
-        ComputeryButton playersButton = new ComputeryButton() {
+        ComputeryButton visitorLogButton = new ComputeryButton() {
             X = Pos.Right(serverTerminal) - 1,
             Y = 0,
-            Text = "Players",
+            Text = "Visitor Log",
             Title = "",
             ShadowStyle = ShadowStyle.None,
             BorderStyle = LineStyle.Rounded,
             NoDecorations = true,
             SuperViewRendersLineCanvas = true,
         };
-        playersButton.Border?.SetScheme(LineScheme);
-        playersButton.Accepting += (_, e) => {
+        visitorLogButton.Border?.SetScheme(LineScheme);
+        visitorLogButton.Accepting += (_, e) => {
             _serverView.Visible = false;
+            _visitorLogView.Visible = true;
             e.Handled = true;
         };
-        _top.Add(playersButton);
+        _top.Add(visitorLogButton);
     }
     
     private static void OnProcessExit(object? sender, EventArgs e) { CleanupServer(); }
@@ -175,11 +153,10 @@ internal static class Program {
         SetupProcessEventHandlers();
         
         _ = HandlePipeCommunicationAsync(pipeGuid, cancellationToken);
-        SetupCommandInputHandler();
 
-        _logView.LogLine("Unity process started.");
+        _serverView.LogLine("Unity process started.");
         try { await _serverProcess!.WaitForExitAsync(cancellationToken); } catch { /* Ignored */ }
-        _logView.LogLine("Unity process exited.");
+        _serverView.LogLine("Unity process exited.");
     }
 
     private static void StartServerProcess(string unityAppPath, string pipeGuid) {
@@ -203,26 +180,26 @@ internal static class Program {
         _serverProcess.BeginErrorReadLine();
 
         _serverProcess.OutputDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) { _logView.LogLine(e.Data); }
+            if (!string.IsNullOrEmpty(e.Data)) { _serverView.LogLine(e.Data); }
         };
 
         _serverProcess.ErrorDataReceived += (sender, e) => {
-            if (!string.IsNullOrEmpty(e.Data)) { _logView.LogLine(e.Data); }
+            if (!string.IsNullOrEmpty(e.Data)) { _serverView.LogLine(e.Data); }
         };
     }
 
     private static async Task HandlePipeCommunicationAsync(string pipeGuid, CancellationToken cancellationToken) {
         try {
             _pipeServer = new NamedPipeServerStream(pipeGuid, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-            _logView.LogLine("Waiting for Unity to connect...");
+            _serverView.LogLine("Waiting for Unity to connect...");
 
             await _pipeServer.WaitForConnectionAsync(cancellationToken);
             _pipeWriter = new StreamWriter(_pipeServer) { AutoFlush = true };
-            _logView.LogLine("Unity connected to pipe.");
+            _serverView.LogLine("Unity connected to pipe.");
 
             await ReadUnityMessagesAsync(cancellationToken);
         }
-        catch (Exception ex) { _logView.LogLine($"Pipe error: {ex.Message}"); }
+        catch (Exception ex) { _serverView.LogLine($"Pipe error: {ex.Message}"); }
     }
 
     private static async Task ReadUnityMessagesAsync(CancellationToken cancellationToken) {
@@ -236,31 +213,22 @@ internal static class Program {
                     
                     if (root.TryGetProperty("type", out JsonElement typeElement)) {
                         string? messageType = typeElement.GetString();
-                        _logView.LogLine($"Received message of type: {messageType}");
+                        _serverView.LogLine($"Received message of type: {messageType}");
                     }
                 }
                 catch (Exception e) {
-                    _logView.LogLine($"Failed to parse message from Unity: {line}");
-                    _logView.LogLine($"Error: {e}");
+                    _serverView.LogLine($"Failed to parse message from Unity: {line}");
+                    _serverView.LogLine($"Error: {e}");
                 }
             }
         }
     }
 
-    private static void SetupCommandInputHandler() {
-        _commandInput.KeyDown += (_, e) => {
-            if (e != Key.Enter) { return; }
-            SendCommandToServer(_commandInput.Text);
-            _commandInput.Text = string.Empty;
-        };
-    }
-
     private static void SendCommandToServer(string command) {
         if (!string.IsNullOrWhiteSpace(command) && _pipeWriter != null) {
             try { _pipeWriter.WriteLine(command); }
-            catch (Exception ex) { _logView.LogLine($"Failed to send command: {ex.Message}"); }
+            catch (Exception ex) { _serverView.LogLine($"Failed to send command: {ex.Message}"); }
         }
     }
 }
-
 

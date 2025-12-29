@@ -7,7 +7,10 @@ namespace ComputeryLib.Utilities;
 public static class WorldUtilities {
     private static ServerClient? _worldClient;
     public static bool TryGetWorld(out ServerClient? world) {
-        if (_worldClient != null) { world = _worldClient; return true; }
+        if (_worldClient) {
+            world = _worldClient;
+            return true;
+        }
         world = null;
         return false;
     }
