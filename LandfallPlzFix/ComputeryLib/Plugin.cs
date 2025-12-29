@@ -47,6 +47,7 @@ public class Plugin : BaseUnityPlugin {
         Harmony.PatchAll(typeof(RoomInitRequestCommandPatch));
         Harmony.PatchAll(typeof(ServerFailPatches));
         Harmony.PatchAll(typeof(TerminateUtilityServerClientPatch));
+        Harmony.PatchAll(typeof(GameRoomPatch));
     }
     
     private static void ApplyConditionalPatches() {
