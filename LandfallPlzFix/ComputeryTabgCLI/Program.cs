@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO.Pipes;
+using System.Text;
 using System.Text.Json;
 using Terminal.Gui.App;
 using Terminal.Gui.Drawing;
@@ -32,6 +33,7 @@ internal static class Program {
     
     private static View _playerView = null!;
     private static ListView _playersListView = null!;
+    private static TextView _playerDetailsView = null!;
     private static readonly ObservableCollection<PlayerListEntry> Players = [];
     
     private static readonly Color AccentColor = new (0x8B, 0xE0, 0xFF);
@@ -102,7 +104,6 @@ internal static class Program {
             AutoScroll = true,
             MaxLines = 10000,
             SuperViewRendersLineCanvas = true,
-            CanFocus = true,
         };
         _logView.Border?.SetScheme(LineScheme);
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
@@ -133,7 +134,51 @@ internal static class Program {
         };
         _playersListView.Border?.SetScheme(LineScheme);
         _playersListView.SetSource(Players);
+        _playersListView.SelectedItemChanged += OnPlayerSelected;
         _playerView.Add(_playersListView);
+
+        _playerDetailsView = new TextView {
+            X = Pos.Right(_playersListView) - 1,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            ReadOnly = true,
+            BorderStyle = LineStyle.Rounded,
+            SuperViewRendersLineCanvas = true,
+        };
+        _playerDetailsView.Border?.SetScheme(LineScheme);
+        _playerView.Add(_playerDetailsView);
+    }
+
+    private static void OnPlayerSelected(object? sender, ListViewItemEventArgs e) {
+        if (e.Value is PlayerListEntry entry) {
+            _playerDetailsView.Text = FormatVisitorInfo(entry.EpicUserName, entry.Info);
+        } else {
+            _playerDetailsView.Text = string.Empty;
+        }
+    }
+
+    private static string FormatVisitorInfo(string epicUserName, VisitorInfo info) {
+        StringBuilder sb = new();
+        sb.AppendLine($"EpicID: {epicUserName}");
+        sb.AppendLine($"First Seen: {info.FirstSeen}");
+        sb.AppendLine($"Last Seen: {info.LastSeen}");
+        sb.AppendLine($"Permission Level: {info.PermissionLevel}");
+        sb.AppendLine();
+        
+        sb.AppendLine("Display Names:");
+        foreach(var item in info.DisplayNames) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
+        
+        sb.AppendLine("Steam IDs:");
+        foreach(var item in info.SteamIds) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
+
+        sb.AppendLine("Playfab IDs:");
+        foreach(var item in info.PlayfabIds) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
+
+        sb.AppendLine("IP Addresses:");
+        foreach(var item in info.IpAddresses) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
+
+        return sb.ToString();
     }
 
     private static void SetupButtons() {
@@ -279,26 +324,51 @@ internal static class Program {
                             string? epicUserName = epicUserNameElement.GetString();
                             if (string.IsNullOrEmpty(epicUserName)) { continue; }
                             VisitorInfo visitorInfo = JsonSerializer.Deserialize<VisitorInfo>(visitorInfoElement.GetRawText())!;
-                            PlayerListEntry entry = new PlayerListEntry(epicUserName, visitorInfo);
+                            
                             _app.Invoke(() => {
-                                int existingIndex = -1;
-                                for (int i = 0; i < Players.Count; i++) {
-                                    if (Players[i].EpicUserName != epicUserName) { continue; }
-                                    existingIndex = i;
-                                    break;
+                                PlayerListEntry? existingEntry = Players.FirstOrDefault(p => p.EpicUserName == epicUserName);
+                                if (existingEntry != null) {
+                                    existingEntry.Info = visitorInfo;
+                                    
+                                    int? savedSelection = _playersListView.SelectedItem;
+                                    _playersListView.SetSource(Players);
+                                    
+                                    if (savedSelection is int idx && idx >= 0 && idx < Players.Count) {
+                                        _playersListView.SelectedItem = idx;
+                                    }
+                                    
+                                    if (_playersListView.SelectedItem == savedSelection && 
+                                        savedSelection is int sIdx && 
+                                        Players[sIdx] == existingEntry) {
+                                        _playerDetailsView.Text = FormatVisitorInfo(existingEntry.EpicUserName, existingEntry.Info);
+                                    }
+                                } else {
+                                    int? savedSelection = _playersListView.SelectedItem;
+                                    Players.Add(new PlayerListEntry(epicUserName, visitorInfo));
+                                    _playersListView.SetSource(Players);
+                                    if (savedSelection is int idx) _playersListView.SelectedItem = idx;
                                 }
-                                if (existingIndex != -1) { Players[existingIndex] = entry; }
-                                else { Players.Add(entry); }
                             });
                         }
                         else if (messageType == "PlayerLeft" && root.TryGetProperty("epicUserName", out JsonElement playerLeftEpicUserNameElement)) {
                             string? epicUserName = playerLeftEpicUserNameElement.GetString();
                             if (string.IsNullOrEmpty(epicUserName)) { continue; }
                             _app.Invoke(() => {
-                                for (int i = 0; i < Players.Count; i++) {
-                                    if (Players[i].EpicUserName != epicUserName) { continue; }
-                                    Players.RemoveAt(i);
-                                    break;
+                                var entryToRemove = Players.FirstOrDefault(p => p.EpicUserName == epicUserName);
+                                if (entryToRemove != null) {
+                                    int index = Players.IndexOf(entryToRemove);
+                                    var oldSelection = _playersListView.SelectedItem;
+                                    
+                                    Players.Remove(entryToRemove);
+                                    _playersListView.SetSource(Players);
+                                    
+                                    if (oldSelection == index) {
+                                        _playerDetailsView.Text = string.Empty;
+                                    } else if (oldSelection is int sel && sel > index) {
+                                        _playersListView.SelectedItem = Math.Max(0, sel - 1);
+                                    } else if (oldSelection is int sel2) {
+                                        _playersListView.SelectedItem = sel2;
+                                    }
                                 }
                             });
                         }
@@ -327,3 +397,5 @@ internal static class Program {
         }
     }
 }
+
+
