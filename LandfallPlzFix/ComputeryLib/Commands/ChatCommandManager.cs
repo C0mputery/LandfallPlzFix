@@ -21,7 +21,6 @@ public delegate void ChatCommandHandler(string[] arguments, TABGPlayerServer? se
 
 public static class ChatCommandManager {
     private static readonly ConfigFile ChatCommandsConfig = new ConfigFile(Path.Combine(Paths.ConfigPath, "ChatCommands.cfg"), true);
-    private static readonly ConfigFile UserPermissionsConfig = new ConfigFile(Path.Combine(Paths.ConfigPath, "UserPermissions.cfg"), true);
     
     private static readonly Dictionary<string, ChatCommandContext> Commands = new();
     public static bool HandleChatMessage(string message, TABGPlayerServer sender, ServerClient world) {
@@ -91,7 +90,7 @@ public static class ChatCommandManager {
     }
     
     private static uint GetUserPermissionLevel(TABGPlayerServer player) { 
-        return UserPermissionsConfig.TryGetEntry(new ConfigDefinition("UserPermissions", player.EpicUserName.ToString()), out ConfigEntry<uint> userPermissionEntry) ? userPermissionEntry.Value : 0;
+        return VisitorLog.VisitorLog.GetPermissionLevel(player.EpicUserName);
     }
     
     [ChatCommand("help", "Displays the description of a command or lists all commands you can use.", 0)]

@@ -40,6 +40,7 @@ public struct VisitorInfo() {
     public List<DatedString> IpAddresses { get; set; } = [];
     public DateTime FirstSeen { get; set; }
     public DateTime LastSeen { get; set; }
+    public uint PermissionLevel { get; set; } = 0;
 }
 
 public static class VisitorLog {
@@ -57,6 +58,10 @@ public static class VisitorLog {
 
     private static void SaveVisitorLog() { File.WriteAllText(VisitorLogPath, JsonConvert.SerializeObject(Visitors, Formatting.Indented)); }
     
+    public static uint GetPermissionLevel(string epicUserName) {
+        return Visitors.TryGetValue(epicUserName, out VisitorInfo visitorInfo) ? visitorInfo.PermissionLevel : 0;
+    }
+
     public static void LogVisitor(TABGPlayerServer player) {
         DateTime currentTime = DateTime.UtcNow;
         
