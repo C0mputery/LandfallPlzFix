@@ -14,7 +14,7 @@ namespace ComputeryTabgCLI;
 public class PlayerListEntry(string epicUserName, VisitorInfo info) {
     public readonly string EpicUserName = epicUserName;
     public VisitorInfo Info = info;
-    public override string ToString() { return $"{EpicUserName} - Permission Level: {Info.PermissionLevel}"; }
+    public override string ToString() { return $"{Info.DisplayNames[^1].Value}"; }
 }
 
 internal static class Program {
@@ -287,8 +287,9 @@ internal static class Program {
                         });
                     }
                 }
-                catch {
-                    // Not a JSON message or not visitor info, ignore
+                catch (Exception e) {
+                    _logView.LogLine($"Failed to parse message from Unity: {line}");
+                    _logView.LogLine($"Error: {e}");
                 }
             }
         }

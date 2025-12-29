@@ -100,8 +100,9 @@ public static class VisitorLog {
         SaveVisitorLog();
         
         PipeHandler? pipeHandler = PipeHandler.Instance;
-        if (pipeHandler == null) { return; }
-        string json = JsonConvert.SerializeObject(new { epicUserName = player.EpicUserName, visitorInfo });
-        pipeHandler.SendMessage(json);
+        if (pipeHandler != null) {
+            string json = JsonConvert.SerializeObject(new { epicUserName = player.EpicUserName.ToString(), visitorInfo });
+            pipeHandler.SendMessage(json);
+        }
     }
 }
