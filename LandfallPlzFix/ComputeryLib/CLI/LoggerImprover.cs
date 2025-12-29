@@ -35,6 +35,7 @@ public static class LoggerImprover {
     
     [HarmonyTranspiler]
     [HarmonyPatch(typeof(GameRoom), nameof(GameRoom.EndMatch))]
+    [HarmonyPatch(typeof(TeamDeadCommand), nameof(TeamDeadCommand.Run))]
     public static IEnumerable<CodeInstruction> FixPlayFabDisabledLog(IEnumerable<CodeInstruction> instructions) {
         CodeMatcher matcher = new CodeMatcher(instructions);
         matcher.MatchForward(false, new CodeMatch(OpCodes.Ldstr, "Playfab Is Disabled!"));
@@ -42,6 +43,18 @@ public static class LoggerImprover {
         return matcher.InstructionEnumeration();
     }
 
+    [HarmonyTranspiler]
+    [HarmonyPatch(typeof(PlayerLeaveCommand), nameof(PlayerLeaveCommand.Run))]
+    public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions) {
+        CodeMatcher matcher = new CodeMatcher(instructions);
+
+        matcher.MatchForward(false, new CodeMatch(OpCodes.Ldstr, "Playfab Is Disabled!"));
+        List<Label> labelsToPreserve = new List<Label>(matcher.Instruction.labels);
+        matcher.RemoveInstructions(3);
+        matcher.Instruction.labels.AddRange(labelsToPreserve);
+
+        return matcher.InstructionEnumeration();
+    }
     
     [HarmonyPrefix]
     [HarmonyPatch(typeof(RuntimeManager), nameof(RuntimeManager.LoadBank), typeof(string), typeof(bool))]
