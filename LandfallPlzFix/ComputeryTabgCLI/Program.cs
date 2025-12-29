@@ -163,20 +163,19 @@ internal static class Program {
         sb.AppendLine($"EpicID: {epicUserName}");
         sb.AppendLine($"First Seen: {info.FirstSeen}");
         sb.AppendLine($"Last Seen: {info.LastSeen}");
-        sb.AppendLine($"Permission Level: {info.PermissionLevel}");
         sb.AppendLine();
         
         sb.AppendLine("Display Names:");
-        foreach(var item in info.DisplayNames) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
+        foreach(DatedString item in info.DisplayNames) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
         
         sb.AppendLine("Steam IDs:");
-        foreach(var item in info.SteamIds) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
+        foreach(DatedString item in info.SteamIds) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
 
         sb.AppendLine("Playfab IDs:");
-        foreach(var item in info.PlayfabIds) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
+        foreach(DatedString item in info.PlayfabIds) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
 
         sb.AppendLine("IP Addresses:");
-        foreach(var item in info.IpAddresses) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
+        foreach(DatedString item in info.IpAddresses) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
 
         return sb.ToString();
     }
