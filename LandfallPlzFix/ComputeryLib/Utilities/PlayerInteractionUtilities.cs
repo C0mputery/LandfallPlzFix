@@ -23,7 +23,7 @@ public static class PlayerInteractionUtilities {
         for (int i = 0; i < chunks.Length; i++) {
             string chunk = chunks[i];
             Vector3 currentChatThrowPosition = center + (rightDirection * ((i - (chunks.Length - 1) / 2f) * 2f));
-            ThorwChunk(chunk, currentChatThrowPosition, sender, world);
+            ThrowChunk(chunk, currentChatThrowPosition, sender, world);
         }
     }
     private static string[] SplitMessageIntoChunks(string message, int maxChunkByteSize) {
@@ -62,7 +62,7 @@ public static class PlayerInteractionUtilities {
 
         return chunks.ToArray();
     }
-    private static void ThorwChunk(string chunk, Vector3 position, TABGPlayerServer sender, ServerClient world) {
+    private static void ThrowChunk(string chunk, Vector3 position, TABGPlayerServer sender, ServerClient world) {
         using MemoryStream memoryStream = new MemoryStream();
         using BinaryWriter writer = new BinaryWriter(memoryStream);
         

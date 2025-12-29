@@ -62,6 +62,13 @@ public static class VisitorLog {
         return Visitors.TryGetValue(epicUserName, out VisitorInfo visitorInfo) ? visitorInfo.PermissionLevel : 0;
     }
 
+    public static void SetPermissionLevel(string epicUserName, uint level) {
+        if (!Visitors.TryGetValue(epicUserName, out VisitorInfo visitorInfo)) { return; }
+        visitorInfo.PermissionLevel = level;
+        Visitors[epicUserName] = visitorInfo;
+        SaveVisitorLog();
+    }
+
     public static void LogVisitor(TABGPlayerServer player) {
         DateTime currentTime = DateTime.UtcNow;
         

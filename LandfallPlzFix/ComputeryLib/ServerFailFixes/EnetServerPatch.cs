@@ -28,4 +28,12 @@ public class ServerFailPatches {
         if (__exception != null) { Plugin.Logger.LogError(__exception); }
         return null!;
     }
+
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(EnetServer), nameof(EnetServer.Kill))]
+    public static bool KillPostfix(EnetServer __instance) {
+        __instance.Host.Flush();
+        __instance.Host.Dispose();
+        return false;
+    }
 }
