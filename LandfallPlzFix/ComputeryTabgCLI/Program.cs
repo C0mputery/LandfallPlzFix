@@ -12,12 +12,6 @@ using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace ComputeryTabgCLI;
 
-public class PlayerListEntry(string epicUserName, VisitorInfo info) {
-    public readonly string EpicUserName = epicUserName;
-    public VisitorInfo Info = info;
-    public override string ToString() { return $"{Info.DisplayNames[^1].Value}"; }
-}
-
 internal static class Program {
     private static readonly CancellationTokenSource CancellationTokenSource = new();
     private static Process? _serverProcess;
@@ -30,11 +24,6 @@ internal static class Program {
     private static View _serverView = null!;
     private static LogView _logView = null!;
     private static TextField _commandInput = null!;
-    
-    private static View _playerView = null!;
-    private static ListView _playersListView = null!;
-    private static TextView _playerDetailsView = null!;
-    private static readonly ObservableCollection<PlayerListEntry> Players = [];
     
     private static readonly Color AccentColor = new (0x8B, 0xE0, 0xFF);
     private static Scheme DefaultScheme => new() { };
@@ -62,7 +51,6 @@ internal static class Program {
         _top.SetScheme(DefaultScheme);
 
         SetupServerView();
-        SetupPlayerView();
         SetupButtons();
 
         _ = RunServerAsync(CancellationTokenSource.Token);
@@ -113,73 +101,6 @@ internal static class Program {
         _serverView.Add(_logView);
     }
 
-    private static void SetupPlayerView() {
-        _playerView = new View() { 
-            X = 0,
-            Y = 2,
-            Width = Dim.Fill(), 
-            Height = Dim.Fill(), 
-            Visible = false,
-            SuperViewRendersLineCanvas = true,
-        };
-        _top.Add(_playerView);
-        
-        _playersListView = new ListView {
-            X = 0,
-            Y = 0,
-            Width = 30,
-            Height = Dim.Fill(),
-            BorderStyle = LineStyle.Rounded,
-            SuperViewRendersLineCanvas = true,
-        };
-        _playersListView.Border?.SetScheme(LineScheme);
-        _playersListView.SetSource(Players);
-        _playersListView.SelectedItemChanged += OnPlayerSelected;
-        _playerView.Add(_playersListView);
-
-        _playerDetailsView = new TextView {
-            X = Pos.Right(_playersListView) - 1,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = Dim.Fill(),
-            ReadOnly = true,
-            BorderStyle = LineStyle.Rounded,
-            SuperViewRendersLineCanvas = true,
-        };
-        _playerDetailsView.Border?.SetScheme(LineScheme);
-        _playerView.Add(_playerDetailsView);
-    }
-
-    private static void OnPlayerSelected(object? sender, ListViewItemEventArgs e) {
-        if (e.Value is PlayerListEntry entry) {
-            _playerDetailsView.Text = FormatVisitorInfo(entry.EpicUserName, entry.Info);
-        } else {
-            _playerDetailsView.Text = string.Empty;
-        }
-    }
-
-    private static string FormatVisitorInfo(string epicUserName, VisitorInfo info) {
-        StringBuilder sb = new();
-        sb.AppendLine($"EpicID: {epicUserName}");
-        sb.AppendLine($"First Seen: {info.FirstSeen}");
-        sb.AppendLine($"Last Seen: {info.LastSeen}");
-        sb.AppendLine();
-        
-        sb.AppendLine("Display Names:");
-        foreach(DatedString item in info.DisplayNames) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
-        
-        sb.AppendLine("Steam IDs:");
-        foreach(DatedString item in info.SteamIds) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
-
-        sb.AppendLine("Playfab IDs:");
-        foreach(DatedString item in info.PlayfabIds) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
-
-        sb.AppendLine("IP Addresses:");
-        foreach(DatedString item in info.IpAddresses) sb.AppendLine($" - {item.Value} ({item.FirstSeen} - {item.LastSeen})");
-
-        return sb.ToString();
-    }
-
     private static void SetupButtons() {
         ComputeryButton serverTerminal = new ComputeryButton() {
             X = 0,
@@ -194,7 +115,6 @@ internal static class Program {
         };
         serverTerminal.Border?.SetScheme(LineScheme);
         serverTerminal.Accepting += (_, e) => {
-            _playerView.Visible = false;
             _serverView.Visible = true;
             e.Handled = true;
         };
@@ -212,7 +132,6 @@ internal static class Program {
         };
         playersButton.Border?.SetScheme(LineScheme);
         playersButton.Accepting += (_, e) => {
-            _playerView.Visible = true;
             _serverView.Visible = false;
             e.Handled = true;
         };
@@ -318,59 +237,6 @@ internal static class Program {
                     if (root.TryGetProperty("type", out JsonElement typeElement)) {
                         string? messageType = typeElement.GetString();
                         _logView.LogLine($"Received message of type: {messageType}");
-                        
-                        if (messageType == "PlayerJoined" && root.TryGetProperty("epicUserName", out JsonElement epicUserNameElement) && root.TryGetProperty("visitorInfo", out JsonElement visitorInfoElement)) {
-                            string? epicUserName = epicUserNameElement.GetString();
-                            if (string.IsNullOrEmpty(epicUserName)) { continue; }
-                            VisitorInfo visitorInfo = JsonSerializer.Deserialize<VisitorInfo>(visitorInfoElement.GetRawText())!;
-                            
-                            _app.Invoke(() => {
-                                PlayerListEntry? existingEntry = Players.FirstOrDefault(p => p.EpicUserName == epicUserName);
-                                if (existingEntry != null) {
-                                    existingEntry.Info = visitorInfo;
-                                    
-                                    int? savedSelection = _playersListView.SelectedItem;
-                                    _playersListView.SetSource(Players);
-                                    
-                                    if (savedSelection is int idx && idx >= 0 && idx < Players.Count) {
-                                        _playersListView.SelectedItem = idx;
-                                    }
-                                    
-                                    if (_playersListView.SelectedItem == savedSelection && 
-                                        savedSelection is int sIdx && 
-                                        Players[sIdx] == existingEntry) {
-                                        _playerDetailsView.Text = FormatVisitorInfo(existingEntry.EpicUserName, existingEntry.Info);
-                                    }
-                                } else {
-                                    int? savedSelection = _playersListView.SelectedItem;
-                                    Players.Add(new PlayerListEntry(epicUserName, visitorInfo));
-                                    _playersListView.SetSource(Players);
-                                    if (savedSelection is int idx) _playersListView.SelectedItem = idx;
-                                }
-                            });
-                        }
-                        else if (messageType == "PlayerLeft" && root.TryGetProperty("epicUserName", out JsonElement playerLeftEpicUserNameElement)) {
-                            string? epicUserName = playerLeftEpicUserNameElement.GetString();
-                            if (string.IsNullOrEmpty(epicUserName)) { continue; }
-                            _app.Invoke(() => {
-                                var entryToRemove = Players.FirstOrDefault(p => p.EpicUserName == epicUserName);
-                                if (entryToRemove != null) {
-                                    int index = Players.IndexOf(entryToRemove);
-                                    var oldSelection = _playersListView.SelectedItem;
-                                    
-                                    Players.Remove(entryToRemove);
-                                    _playersListView.SetSource(Players);
-                                    
-                                    if (oldSelection == index) {
-                                        _playerDetailsView.Text = string.Empty;
-                                    } else if (oldSelection is int sel && sel > index) {
-                                        _playersListView.SelectedItem = Math.Max(0, sel - 1);
-                                    } else if (oldSelection is int sel2) {
-                                        _playersListView.SelectedItem = sel2;
-                                    }
-                                }
-                            });
-                        }
                     }
                 }
                 catch (Exception e) {

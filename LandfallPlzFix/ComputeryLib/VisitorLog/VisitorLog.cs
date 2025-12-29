@@ -98,11 +98,5 @@ public static class VisitorLog {
         
         _visitors[player.EpicUserName] = visitorInfo;
         SaveVisitorLog();
-        
-        PipeHandler? pipeHandler = PipeHandler.Instance;
-        if (pipeHandler != null) {
-            string json = JsonConvert.SerializeObject(new { type = "PlayerJoined", epicUserName = player.EpicUserName.ToString(), visitorInfo });
-            pipeHandler.SendMessage(json);
-        }
     }
 }
