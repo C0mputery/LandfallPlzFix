@@ -22,17 +22,19 @@ internal static class Program {
     private static TextField _commandInput = null!;
 
     private static readonly Color AccentColor = new (0x8B, 0xE0, 0xFF);
-    private static Scheme DefaultScheme => new() {
-        Normal = new Attribute(Color.White, Color.Black),
-        HotNormal = new Attribute(AccentColor, Color.Black),
-        Focus = new Attribute(Color.Black, AccentColor),
-        HotFocus = new Attribute(Color.Black, AccentColor),
-        Active = new Attribute(Color.Black, AccentColor),
-        HotActive = new Attribute(Color.White, AccentColor),
-        Highlight = new Attribute(Color.Black, AccentColor),
-        Disabled = new Attribute(Color.DarkGray, Color.Black),
-        Editable = new Attribute(Color.White, Color.Black),
-        ReadOnly = new Attribute(Color.DarkGray, Color.Black),
+    private static Scheme DefaultScheme => new() { };       
+    private static readonly Attribute LineAttr = new Attribute(AccentColor, Color.Black);
+    private static readonly Scheme LineScheme = new() {
+        Normal = LineAttr,
+        HotNormal = LineAttr,
+        Focus = LineAttr,
+        HotFocus = LineAttr,
+        Active = LineAttr,
+        HotActive = LineAttr,
+        Highlight = LineAttr,
+        Disabled = LineAttr,
+        Editable = LineAttr,
+        ReadOnly = LineAttr,
     };
     
     private static void LogLine(string text) { lock (LogBufferLock) { LogBuffer.Add(text); } }
@@ -45,49 +47,19 @@ internal static class Program {
         Window top = new() { BorderStyle = LineStyle.None, };
         top.SetScheme(DefaultScheme);
 
-        Attribute lineAttr = new Attribute(AccentColor, Color.Black);
-        Scheme lineScheme = new() {
-            Normal = lineAttr,
-            HotNormal = lineAttr,
-            Focus = lineAttr,
-            HotFocus = lineAttr,
-            Active = lineAttr,
-            HotActive = lineAttr,
-            Highlight = lineAttr,
-            Disabled = lineAttr,
-            Editable = lineAttr,
-            ReadOnly = lineAttr,
-        };
-        
-        ComputeryButton serverTerminal = new ComputeryButton() {
-            X = 0,
-            Y = 0,
-            Text = "Server Terminal",
-            Title = "",
-            ShadowStyle = ShadowStyle.None,
-            BorderStyle = LineStyle.Rounded,
-            NoDecorations = true,
-            SuperViewRendersLineCanvas = true,
-        };
-        serverTerminal.Border?.SetScheme(lineScheme);
-        top.Add(serverTerminal);
-        
-        ComputeryButton playersButton = new ComputeryButton() {
-            X = Pos.Right(serverTerminal) - 1,
-            Y = 0,
-            Text = "Players",
-            Title = "",
-            ShadowStyle = ShadowStyle.None,
-            BorderStyle = LineStyle.Rounded,
-            NoDecorations = true,
-            SuperViewRendersLineCanvas = true,
-        };
-        playersButton.Border?.SetScheme(lineScheme);
-        top.Add(playersButton);
-        
-        _logView = new LogView {
+        // Server View
+        View serverView = new View() {
             X = 0,
             Y = 2,
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            SuperViewRendersLineCanvas = true,
+        };
+        top.Add(serverView);
+
+        _logView = new LogView {
+            X = 0,
+            Y = 0,
             Width = Dim.Fill(),
             Height = Dim.Fill(2),
             WordWrap = true,
@@ -95,7 +67,7 @@ internal static class Program {
             MaxLines = 10000,
             SuperViewRendersLineCanvas = true
         };
-        _logView.Border?.SetScheme(lineScheme);
+        _logView.Border?.SetScheme(LineScheme);
         _app.AddTimeout(TimeSpan.FromMilliseconds(10), () => {
             List<string> linesToAdd = [];
             lock (LogBufferLock) {
@@ -111,8 +83,7 @@ internal static class Program {
             
             return true;
         });
-        top.Add(_logView);
-        
+        serverView.Add(_logView);
         _commandInput = new TextField {
             X = 0,
             Y = Pos.AnchorEnd(3),
@@ -121,11 +92,51 @@ internal static class Program {
             BorderStyle = LineStyle.Rounded,
             SuperViewRendersLineCanvas = true,
         };
-        _commandInput.Border?.SetScheme(lineScheme);
-        top.Add(_commandInput);
+        _commandInput.Border?.SetScheme(LineScheme);
+        serverView.Add(_commandInput);
         
-        View settingsView = new View() { Width = Dim.Fill(), Height = Dim.Fill() };
+        // Settings View
+        View settingsView = new View() { Width = Dim.Fill(), Height = Dim.Fill(), Visible = false, };
         settingsView.Add(new Label() { Text = "Players Here", X = Pos.Center(), Y = Pos.Center() });
+        top.Add(settingsView);
+        
+        // Buttons
+        ComputeryButton serverTerminal = new ComputeryButton() {
+            X = 0,
+            Y = 0,
+            Text = "Server Terminal",
+            Title = "",
+            ShadowStyle = ShadowStyle.None,
+            BorderStyle = LineStyle.Rounded,
+            NoDecorations = true,
+            SuperViewRendersLineCanvas = true,
+            IsDefault = true,
+        };
+        serverTerminal.Border?.SetScheme(LineScheme);
+        serverTerminal.Accepting += (_, e) => {
+            settingsView.Visible = false;
+            serverView.Visible = true;
+            e.Handled = true;
+        };
+        top.Add(serverTerminal);
+        
+        ComputeryButton playersButton = new ComputeryButton() {
+            X = Pos.Right(serverTerminal) - 1,
+            Y = 0,
+            Text = "Players",
+            Title = "",
+            ShadowStyle = ShadowStyle.None,
+            BorderStyle = LineStyle.Rounded,
+            NoDecorations = true,
+            SuperViewRendersLineCanvas = true,
+        };
+        playersButton.Border?.SetScheme(LineScheme);
+        playersButton.Accepting += (_, e) => {
+            settingsView.Visible = true;
+            serverView.Visible = false;
+            e.Handled = true;
+        };
+        top.Add(playersButton);
         
         _ = RunServerAsync(CancellationTokenSource.Token);
         

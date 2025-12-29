@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
+using FMODUnity;
 using HarmonyLib;
+using Landfall.Network;
 using Landfall.TABG;
 using UnityEngine;
 
@@ -36,8 +38,19 @@ public static class LoggerImprover {
         return matcher.InstructionEnumeration();
     }
     
+    [HarmonyTranspiler]
+    [HarmonyPatch(typeof(GameRoom), nameof(GameRoom.EndMatch))]
+    public static IEnumerable<CodeInstruction> FixPlayFabDisabledLog(IEnumerable<CodeInstruction> instructions) {
+        CodeMatcher matcher = new CodeMatcher(instructions);
+        matcher.MatchForward(false, new CodeMatch(OpCodes.Ldstr, "Playfab Is Disabled!"));
+        matcher.RemoveInstructions(3);
+        return matcher.InstructionEnumeration();
+    }
+
+    
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(FMODUnity.RuntimeManager), nameof(FMODUnity.RuntimeManager.LoadBank), typeof(string), typeof(bool))]
-    [HarmonyPatch(typeof(FMODUnity.RuntimeManager), nameof(FMODUnity.RuntimeManager.CreateInstance), typeof(string))]
+    [HarmonyPatch(typeof(RuntimeManager), nameof(RuntimeManager.LoadBank), typeof(string), typeof(bool))]
+    [HarmonyPatch(typeof(RuntimeManager), nameof(RuntimeManager.CreateInstance), typeof(string))]
+    [HarmonyPatch(typeof(StudioEventEmitter), nameof(StudioEventEmitter.Start))]
     public static bool Disable() { return false; }
 }
