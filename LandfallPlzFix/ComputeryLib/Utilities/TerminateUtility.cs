@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Reflection.Emit;
 using HarmonyLib;
 using Landfall.Network;
 
@@ -23,5 +25,16 @@ public static class TerminateUtility {
     public static void AwakePrefix(ref float time) {
         time -= 10f;
         if (time < 0f) { time = 0f; }
+    }
+    
+    [HarmonyTranspiler]
+    [HarmonyPatch(nameof(GameRoom.EndMatch), typeof(TeamStanding))]
+    public static IEnumerable<CodeInstruction> FixLandLog(IEnumerable<CodeInstruction> instructions) {
+        CodeMatcher matcher = new CodeMatcher(instructions);
+        matcher.MatchForward(false, new CodeMatch(OpCodes.Ldc_R4, 15f));
+        matcher.Set(OpCodes.Ldc_R4, TerminateUtility.RestartTime);
+        matcher.MatchForward(false, new CodeMatch(OpCodes.Ldc_R4, 15f));
+        matcher.Set(OpCodes.Ldc_R4, TerminateUtility.RestartTime);
+        return matcher.InstructionEnumeration();
     }
 }
