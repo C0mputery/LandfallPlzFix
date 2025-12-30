@@ -16,12 +16,10 @@ public static class VisitorLog {
     private static Dictionary<string, VisitorInfo> _visitors = LoadVisitorLogFromFile();
     
     private static Dictionary<string, VisitorInfo> LoadVisitorLogFromFile() {
-        if (File.Exists(VisitorLogPath)) {
-            string json = File.ReadAllText(VisitorLogPath);
-            try { return JsonConvert.DeserializeObject<Dictionary<string, VisitorInfo>>(json) ?? new Dictionary<string, VisitorInfo>(); }
-            catch (JsonException) { return new Dictionary<string, VisitorInfo>(); }
-        }
-        return new Dictionary<string, VisitorInfo>();
+        if (!File.Exists(VisitorLogPath)) { return new Dictionary<string, VisitorInfo>(); }
+        string json = File.ReadAllText(VisitorLogPath);
+        try { return JsonConvert.DeserializeObject<Dictionary<string, VisitorInfo>>(json) ?? new Dictionary<string, VisitorInfo>(); }
+        catch (JsonException) { return new Dictionary<string, VisitorInfo>(); }
     }
 
     private static void SaveVisitorLog() { File.WriteAllText(VisitorLogPath, JsonConvert.SerializeObject(_visitors, Formatting.Indented)); }
