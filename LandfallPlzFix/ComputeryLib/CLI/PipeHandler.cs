@@ -70,6 +70,8 @@ public class PipeHandler : MonoBehaviour {
     public void Update() {
         while (_messageQueue.TryDequeue(out string? message)) { ChatCommandManager.HandleConsoleMessage(message); }
         
+        return;
+        
         if (Time.time >= _nextPlayerListUpdate && WorldUtilities.TryGetWorld(out ServerClient? world)) {
             _nextPlayerListUpdate = Time.time + 15f;
             List<TABGPlayerServer> players = world!.GameRoomReference.Players;
