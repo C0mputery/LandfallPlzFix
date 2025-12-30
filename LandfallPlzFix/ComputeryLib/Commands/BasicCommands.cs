@@ -71,22 +71,12 @@ public static class BasicCommands {
         }
 
         string searchValue = string.Join(" ", arguments.Take(arguments.Length - 1));
-        
-        List<TABGPlayerServer>? players = world!.GameRoomReference.Players;
-
-        TABGPlayerServer? foundPlayer = null;
-        foreach (TABGPlayerServer player in players) {
-            if (player.PlayerName != searchValue && player.PlayerIndex.ToString() != searchValue && player.EpicUserName != searchValue) { continue; }
-            foundPlayer = player;
-            break;
-        }
-
-        if (foundPlayer == null) {
+        if (!SearchUtility.TryGetPlayerByNameOrID(searchValue, out TABGPlayerServer? foundPlayer)) {
             PlayerInteractionUtility.PrivateMessageOrConsoleLog($"Player not found: {searchValue}", sender);
             return;
         }
-        
-        VisitorLog.VisitorLog.SetPermissionLevel(foundPlayer.EpicUserName, level);
+
+        VisitorLog.VisitorLog.SetPermissionLevel(foundPlayer!.EpicUserName, level);
         PlayerInteractionUtility.PrivateMessageOrConsoleLog($"Set permission level {level} for player {foundPlayer.PlayerName}", sender);
         
         PlayerInteractionUtility.PrivateMessageOrConsoleLog($"Player not found: {searchValue}", sender);
