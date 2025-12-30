@@ -82,17 +82,17 @@ public static class BasicCommands {
         PlayerInteractionUtility.PrivateMessageOrConsoleLog($"Player not found: {searchValue}", sender);
     }
     
-    [ChatCommand("kick", "Kicks a player from the server. Usage: /kick <player_name|player_id|epic_username> <reason:optional>", 10)]
+    [ChatCommand("kick", "Kicks a player from the server. Usage: /kick <player_name|player_id|epic_username>, <reason:optional>", 10)]
     public static void KickCommand(string[] arguments, TABGPlayerServer? sender) {
         
     }
     
-    [ChatCommand("ban", "Bans a players Epic Id from the server. Usage: /ban <player_name|player_id|epic_username> <reason:optional> <duration_in_minutes:optional>", 10)]
+    [ChatCommand("ban", "Bans a players Epic Id from the server. Usage: /ban <player_name|player_id|epic_username>, <reason:optional>, <duration_in_minutes:optional>", 10)]
     public static void BanCommand(string[] arguments, TABGPlayerServer? sender) {
         
     }
 
-    [ChatCommand("ipban", "Bans a players IP from the server. Usage: /ipban <player_name|player_id|epic_username|ip> <reason:optional> <duration_in_minutes:optional>. Only works on Enet servers.", 10)]
+    [ChatCommand("ipban", "Bans a players IP from the server. Usage: /ipban <player_name|player_id|epic_username|ip>, <reason:optional>, <duration_in_minutes:optional>. Only works on Enet servers.", 10)]
     public static void IPBanCommand(string[] arguments, TABGPlayerServer? sender) {
         
     }

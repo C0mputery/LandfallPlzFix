@@ -25,9 +25,21 @@ public static class ChatCommandManager {
     public static readonly Dictionary<string, ChatCommandContext> Commands = new();
     public static bool HandleChatMessage(string message, TABGPlayerServer sender) {
         if (message.Length == 0 || message[0] != '/') { return false; }
-        string[] parts = message.ToLower().Substring(1).Split(' ');
-        string commandName = parts[0];
-        string[] arguments = parts.Skip(1).ToArray();
+        
+        string messageLowerNoSlash = message[1..];
+        int firstSpaceIndex = messageLowerNoSlash.IndexOf(' ');
+        string commandName;
+        string[] arguments;
+        if (firstSpaceIndex == -1) {
+            commandName = messageLowerNoSlash.ToLower();
+            arguments = [];
+        }
+        else {
+            commandName = messageLowerNoSlash[..firstSpaceIndex].ToLower();
+            string argumentsString = messageLowerNoSlash[firstSpaceIndex..];
+            arguments = argumentsString.Split([','], StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < arguments.Length; i++) { arguments[i] = arguments[i].Trim(); }
+        }
         
         if (!Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) {
             PlayerInteractionUtility.PrivateMessage($"Unknown command: {commandName}, type /help for a list of commands you can use.", sender);
