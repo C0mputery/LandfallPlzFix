@@ -54,10 +54,14 @@ internal static class Program {
 
         _ = RunServerAsync(CancellationTokenSource.Token);
 
-        _app.Run(_top);
-        _top.Dispose();
-        _app.Dispose();
-        CleanupServer();
+        try {
+            _app.Run(_top);
+        }
+        finally { 
+            _top.Dispose();
+            _app.Dispose();
+            CleanupServer();
+        }
     }
 
     private static void SetupServerView() {
