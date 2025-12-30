@@ -1,3 +1,5 @@
+using System.IO;
+using System.Text;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -5,31 +7,58 @@ using Terminal.Gui.ViewBase;
 namespace ComputeryTabgCLI;
 
 /// <summary>
-/// High-performance log view that uses a circular buffer for efficient handling of large amounts of text.
-/// Supports scrolling, word wrapping, and auto-scroll to bottom.
+/// Memory-efficient log view that stores logs to a file and reads on-demand.
+/// Only keeps line offsets in memory for seeking.
 /// </summary>
 public class LogView : View {
-    private readonly List<string> _lines = new();
-    private readonly List<int> _lineHeights = new();
+    private readonly string _logFilePath;
+    private readonly string _indexFilePath;
+    private FileStream? _logStream;
+    private FileStream? _indexStream;
+    private BinaryWriter? _logWriter;
+    private BinaryWriter? _indexWriter;
     private readonly Lock _lock = new();
-    private readonly List<string> _logBuffer = new();
-    private readonly Lock _logBufferLock = new();
+    
+    // Pending log buffer for thread-safe additions
+    private readonly Queue<string> _pendingLogs = new();
+    private readonly Lock _pendingLock = new();
+    private const int MaxPendingLogs = 1000;
+    
+    // Line index cache - stores file offset for each line
+    // Each entry is 8 bytes (long offset) in the index file
+    private int _lineCount;
+    private long _currentOffset;
+    
     private int _maxLines = 10000;
-    private const int MaxLogBufferSize = 10000; // Prevent unbounded buffer growth
-    private const int MaxWrappedLines = 100000; // Prevent unbounded wrapped lines growth
-    private int _topLine;
+    private int _topWrappedLine; // Absolute position of top visible wrapped line
     private bool _autoScroll = true;
     private bool _wordWrap = true;
-    private readonly List<string> _wrappedLines = [];
-    private int _lastWidth = -1;
-    private bool _needsRewrap = true;
-    private long _droppedLineCount; // Track how many lines were dropped
+    private long _droppedLineCount;
+    
+    // Cache for wrapped line count calculation
+    private int _cachedWrappedLineCount;
+    private int _cachedWidth = -1;
+    private bool _cacheValid;
+    
+    // Small LRU cache for recently accessed lines during rendering
+    private readonly Dictionary<int, string> _lineCache = new();
+    private readonly Queue<int> _lineCacheOrder = new();
+    private const int LineCacheSize = 200;
+    
+    private bool _disposed;
+    private bool _needsFlush;
 
-    public LogView() {
+    public LogView() : this(Path.Combine(Path.GetTempPath(), $"logview_{Guid.NewGuid():N}")) { }
+
+    public LogView(string baseFilePath) {
+        _logFilePath = baseFilePath + ".log";
+        _indexFilePath = baseFilePath + ".idx";
+        
+        InitializeFiles();
+        
         CanFocus = true;
         BorderStyle = LineStyle.Rounded;
         
-        // Handle keyboard input for scrolling
         KeyBindings.Add(Key.PageUp, Command.PageUp);
         KeyBindings.Add(Key.PageDown, Command.PageDown);
         KeyBindings.Add(Key.Home, Command.Start);
@@ -45,253 +74,318 @@ public class LogView : View {
         AddCommand(Command.Down, () => { ScrollDown(); return true; });
     }
 
-    /// <summary>
-    /// Maximum number of lines to keep in the buffer. Older lines are discarded.
-    /// </summary>
+    private void InitializeFiles() {
+        _logStream = new FileStream(_logFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 65536, FileOptions.RandomAccess);
+        _indexStream = new FileStream(_indexFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 65536, FileOptions.RandomAccess);
+        _logWriter = new BinaryWriter(_logStream, Encoding.UTF8, leaveOpen: true);
+        _indexWriter = new BinaryWriter(_indexStream, Encoding.UTF8, leaveOpen: true);
+        _lineCount = 0;
+        _currentOffset = 0;
+    }
+
     public int MaxLines {
         get => _maxLines;
         set {
-            _maxLines = Math.Max(100, value);
-            TrimBuffer();
+            lock (_lock) {
+                _maxLines = Math.Max(100, value);
+                TrimOldLinesIfNeeded();
+            }
         }
     }
 
-    /// <summary>
-    /// Automatically scroll to the bottom when new lines are added.
-    /// </summary>
     public bool AutoScroll {
         get => _autoScroll;
         set => _autoScroll = value;
     }
 
-    /// <summary>
-    /// Enable word wrapping for long lines.
-    /// </summary>
     public bool WordWrap {
         get => _wordWrap;
         set {
             if (_wordWrap != value) {
                 _wordWrap = value;
-                _lastWidth = -1; // Force rewrap
+                _cacheValid = false;
                 SetNeedsDraw();
             }
         }
     }
 
-    /// <summary>
-    /// Get the current number of lines in the buffer.
-    /// </summary>
     public int LineCount {
         get {
             lock (_lock) {
-                return _lines.Count;
+                return _lineCount;
             }
         }
     }
 
-    /// <summary>
-    /// Get the current number of wrapped display lines.
-    /// </summary>
     public int WrappedLineCount {
         get {
             lock (_lock) {
-                return _wrappedLines.Count;
+                int width = Viewport.Width;
+                if (width <= 0) return _lineCount;
+                EnsureWrappedLineCountCache(width);
+                return _cachedWrappedLineCount;
             }
         }
     }
 
-    /// <summary>
-    /// Get the number of lines dropped due to buffer limits.
-    /// </summary>
-    public long DroppedLineCount => _droppedLineCount;
+    public long DroppedLineCount => Interlocked.Read(ref _droppedLineCount);
 
-    /// <summary>
-    /// Get the current pending log buffer size.
-    /// </summary>
     public int PendingLogCount {
         get {
-            lock (_logBufferLock) {
-                return _logBuffer.Count;
+            lock (_pendingLock) {
+                return _pendingLogs.Count;
             }
         }
     }
 
     /// <summary>
-    /// Queue a line to be added to the log view (thread-safe).
+    /// Queue a line to be added (thread-safe).
     /// </summary>
     public void LogLine(string text) {
-        lock (_logBufferLock) {
-            // Drop oldest lines if buffer is full to prevent unbounded memory growth
-            if (_logBuffer.Count >= MaxLogBufferSize) {
-                int dropCount = _logBuffer.Count - MaxLogBufferSize + 1;
-                _logBuffer.RemoveRange(0, dropCount);
-                _droppedLineCount += dropCount;
+        lock (_pendingLock) {
+            if (_pendingLogs.Count >= MaxPendingLogs) {
+                _pendingLogs.Dequeue();
+                Interlocked.Increment(ref _droppedLineCount);
             }
-            _logBuffer.Add(text);
+            _pendingLogs.Enqueue(text);
         }
     }
 
     /// <summary>
-    /// Flush the log buffer and add all queued lines to the view.
-    /// Should be called periodically from the main thread.
+    /// Flush pending logs to the file. Call from main thread.
     /// </summary>
     public void FlushLogBuffer() {
-        List<string>? linesToAdd = null;
-        lock (_logBufferLock) {
-            if (_logBuffer.Count > 0) {
-                linesToAdd = new List<string>(_logBuffer);
-                _logBuffer.Clear();
+        string[]? toAdd = null;
+        lock (_pendingLock) {
+            if (_pendingLogs.Count > 0) {
+                toAdd = _pendingLogs.ToArray();
+                _pendingLogs.Clear();
             }
         }
 
-        if (linesToAdd != null) {
-            AddLines(linesToAdd);
+        if (toAdd != null) {
+            AddLines(toAdd);
         }
     }
 
-    /// <summary>
-    /// Add a line to the log view.
-    /// </summary>
     public void AddLine(string line) {
-        AddLines(new[] { line });
+        lock (_lock) {
+            AddLineInternal(line);
+            _cacheValid = false;
+            SetNeedsDraw();
+        }
     }
 
-    /// <summary>
-    /// Add multiple lines to the log view.
-    /// </summary>
     public void AddLines(IEnumerable<string> lines) {
         lock (_lock) {
-            if (_needsRewrap || _lastWidth <= 0) {
-                _lines.AddRange(lines);
-                TrimBuffer();
-                _needsRewrap = true;
-                SetNeedsDraw();
-                return;
-            }
-
             foreach (var line in lines) {
-                _lines.Add(line);
-                int height = WrapAndAddLine(line, _lastWidth);
-                _lineHeights.Add(height);
+                AddLineInternal(line);
             }
-            
-            TrimBuffer();
-            
-            if (_autoScroll) {
-                int height = GetVisibleHeight();
-                int maxScroll = Math.Max(0, _wrappedLines.Count - height);
-                _topLine = maxScroll;
-            }
-            
+            _cacheValid = false;
+            TrimOldLinesIfNeeded();
             SetNeedsDraw();
         }
     }
 
-    /// <summary>
-    /// Clear all lines from the log view.
-    /// </summary>
+    private void AddLineInternal(string line) {
+        if (_logWriter == null || _indexWriter == null || _logStream == null || _indexStream == null) return;
+        
+        // Ensure we're at the end of the files before writing
+        _logStream.Seek(0, SeekOrigin.End);
+        _indexStream.Seek(0, SeekOrigin.End);
+        _currentOffset = _logStream.Position;
+        
+        // Write line offset to index
+        _indexWriter.Write(_currentOffset);
+        
+        // Write line to log file (length-prefixed)
+        byte[] bytes = Encoding.UTF8.GetBytes(line);
+        _logWriter.Write(bytes.Length);
+        _logWriter.Write(bytes);
+        
+        _currentOffset = _logStream.Position;
+        _lineCount++;
+        _needsFlush = true;
+    }
+
+    private void TrimOldLinesIfNeeded() {
+        if (_lineCount <= _maxLines) return;
+        
+        // Need to compact the files - this is expensive but rare
+        int linesToRemove = _lineCount - _maxLines;
+        Interlocked.Add(ref _droppedLineCount, linesToRemove);
+        
+        CompactFiles(linesToRemove);
+    }
+
+    private void CompactFiles(int linesToRemove) {
+        if (_logStream == null || _indexStream == null) return;
+        
+        // Flush current writers
+        _logWriter?.Flush();
+        _indexWriter?.Flush();
+        
+        string tempLogPath = _logFilePath + ".tmp";
+        string tempIndexPath = _indexFilePath + ".tmp";
+        
+        try {
+            using (var tempLogStream = new FileStream(tempLogPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536))
+            using (var tempIndexStream = new FileStream(tempIndexPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536))
+            using (var tempLogWriter = new BinaryWriter(tempLogStream, Encoding.UTF8, leaveOpen: true))
+            using (var tempIndexWriter = new BinaryWriter(tempIndexStream, Encoding.UTF8, leaveOpen: true)) {
+                long newOffset = 0;
+                
+                // Copy lines after linesToRemove
+                for (int i = linesToRemove; i < _lineCount; i++) {
+                    string line = ReadLineFromFile(i);
+                    
+                    tempIndexWriter.Write(newOffset);
+                    byte[] bytes = Encoding.UTF8.GetBytes(line);
+                    tempLogWriter.Write(bytes.Length);
+                    tempLogWriter.Write(bytes);
+                    newOffset = tempLogStream.Position;
+                }
+                
+                _currentOffset = newOffset;
+            }
+            
+            // Close current files
+            _logWriter?.Dispose();
+            _indexWriter?.Dispose();
+            _logStream?.Dispose();
+            _indexStream?.Dispose();
+            
+            // Replace files
+            File.Delete(_logFilePath);
+            File.Delete(_indexFilePath);
+            File.Move(tempLogPath, _logFilePath);
+            File.Move(tempIndexPath, _indexFilePath);
+            
+            // Reopen files
+            _logStream = new FileStream(_logFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read, 65536, FileOptions.RandomAccess);
+            _indexStream = new FileStream(_indexFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read, 65536, FileOptions.RandomAccess);
+            _logWriter = new BinaryWriter(_logStream, Encoding.UTF8, leaveOpen: true);
+            _indexWriter = new BinaryWriter(_indexStream, Encoding.UTF8, leaveOpen: true);
+            
+            // Seek to end
+            _logStream.Seek(0, SeekOrigin.End);
+            _indexStream.Seek(0, SeekOrigin.End);
+            
+            _lineCount -= linesToRemove;
+            _lineCache.Clear();
+            _lineCacheOrder.Clear();
+            
+            // Adjust scroll position - lines were removed from the top
+            // We need to figure out how many wrapped lines were removed
+            // Since cache is cleared, we can't know exactly, so just clamp
+            _topWrappedLine = Math.Max(0, _topWrappedLine);
+        }
+        catch {
+            // If compaction fails, try to clean up temp files
+            try { File.Delete(tempLogPath); } catch { /* Ignore cleanup failures */ }
+            try { File.Delete(tempIndexPath); } catch { /* Ignore cleanup failures */ }
+        }
+    }
+
+    private string ReadLineFromFile(int lineIndex) {
+        if (_logStream == null || _indexStream == null) return string.Empty;
+        if (lineIndex < 0 || lineIndex >= _lineCount) return string.Empty;
+        
+        // Check cache first
+        if (_lineCache.TryGetValue(lineIndex, out string? cached)) {
+            return cached;
+        }
+        
+        try {
+            // Flush writers if needed to ensure data is on disk
+            if (_needsFlush) {
+                _logWriter?.Flush();
+                _indexWriter?.Flush();
+                _needsFlush = false;
+            }
+            
+            // Read offset from index file
+            long indexPosition = lineIndex * sizeof(long);
+            _indexStream.Seek(indexPosition, SeekOrigin.Begin);
+            Span<byte> offsetBytes = stackalloc byte[8];
+            if (_indexStream.Read(offsetBytes) != 8) return string.Empty;
+            long lineOffset = BitConverter.ToInt64(offsetBytes);
+            
+            // Read line length from log file
+            _logStream.Seek(lineOffset, SeekOrigin.Begin);
+            Span<byte> lengthBytes = stackalloc byte[4];
+            if (_logStream.Read(lengthBytes) != 4) return string.Empty;
+            int length = BitConverter.ToInt32(lengthBytes);
+            
+            if (length <= 0 || length > 1024 * 1024) return string.Empty; // Sanity check
+            
+            // Read line content
+            byte[] bytes = new byte[length];
+            int bytesRead = _logStream.Read(bytes, 0, length);
+            if (bytesRead != length) return string.Empty;
+            
+            string line = Encoding.UTF8.GetString(bytes);
+            
+            // Add to cache
+            AddToLineCache(lineIndex, line);
+            
+            return line;
+        }
+        catch {
+            return string.Empty;
+        }
+    }
+
+    private void AddToLineCache(int lineIndex, string line) {
+        if (_lineCache.ContainsKey(lineIndex)) return;
+        
+        // Evict oldest if cache is full
+        while (_lineCacheOrder.Count >= LineCacheSize) {
+            int oldest = _lineCacheOrder.Dequeue();
+            _lineCache.Remove(oldest);
+        }
+        
+        _lineCache[lineIndex] = line;
+        _lineCacheOrder.Enqueue(lineIndex);
+    }
+
     public void Clear() {
         lock (_lock) {
-            _lines.Clear();
-            _wrappedLines.Clear();
-            _lineHeights.Clear();
-            _topLine = 0;
-            _needsRewrap = false;
-            _lastWidth = -1;
+            _logWriter?.Dispose();
+            _indexWriter?.Dispose();
+            _logStream?.Dispose();
+            _indexStream?.Dispose();
+            
+            InitializeFiles();
+            
+            _topWrappedLine = 0;
+            _autoScroll = true;
+            _cacheValid = false;
+            _lineCache.Clear();
+            _lineCacheOrder.Clear();
             SetNeedsDraw();
         }
     }
 
-    private void TrimBuffer() {
-        int excess = _lines.Count - _maxLines;
-        if (excess <= 0) {
-            // Even if line count is OK, check wrapped lines
-            if (_wrappedLines.Count > MaxWrappedLines) {
-                _needsRewrap = true;
-                int linesToDrop = Math.Max(1, _lines.Count / 10); // Drop 10% of lines
-                _lines.RemoveRange(0, linesToDrop);
-            }
-            return;
-        }
-
-        if (!_needsRewrap && _lineHeights.Count == _lines.Count) {
-            int wrappedToRemove = 0;
-            for (int i = 0; i < excess; i++) {
-                wrappedToRemove += _lineHeights[i];
-            }
-            _lineHeights.RemoveRange(0, excess);
-            _wrappedLines.RemoveRange(0, wrappedToRemove);
-            _topLine = Math.Max(0, _topLine - wrappedToRemove);
-        } else {
-            _needsRewrap = true;
-        }
-        
-        _lines.RemoveRange(0, excess);
-    }
-
-    private int GetVisibleHeight() {
-        return Math.Max(1, Viewport.Height);
-    }
-
-    private int WrapAndAddLine(string line, int width) {
-        if (string.IsNullOrEmpty(line)) {
-            _wrappedLines.Add(string.Empty);
+    private int GetWrappedLineCount(string line, int width) {
+        if (string.IsNullOrEmpty(line) || !_wordWrap || line.Length <= width) {
             return 1;
         }
-
-        if (!_wordWrap || line.Length <= width) {
-            _wrappedLines.Add(line);
-            return 1;
-        }
-
-        int count = 0;
-        ReadOnlySpan<char> span = line.AsSpan();
-        for (int i = 0; i < span.Length; i += width) {
-            int length = Math.Min(width, span.Length - i);
-            _wrappedLines.Add(new string(span.Slice(i, length)));
-            count++;
-        }
-        return count;
+        return (line.Length + width - 1) / width;
     }
 
-    private void WrapLines(int width) {
-        _wrappedLines.Clear();
-        _lineHeights.Clear();
+    private void EnsureWrappedLineCountCache(int width) {
+        if (_cacheValid && _cachedWidth == width) return;
         
-        // Pre-allocate estimated capacity
-        _wrappedLines.EnsureCapacity(_lines.Count);
-        _lineHeights.EnsureCapacity(_lines.Count);
-
-        foreach (string line in _lines) {
-            int height = WrapAndAddLine(line, width);
-            _lineHeights.Add(height);
+        int total = 0;
+        for (int i = 0; i < _lineCount; i++) {
+            string line = ReadLineFromFile(i);
+            total += GetWrappedLineCount(line, width);
         }
         
-        // Safety check: if wrapped lines exceed limit, force trim
-        if (_wrappedLines.Count > MaxWrappedLines) {
-            // Calculate how many original lines to keep
-            int wrappedCount = 0;
-            int linesToKeep = 0;
-            for (int i = _lines.Count - 1; i >= 0; i--) {
-                wrappedCount += _lineHeights[i];
-                if (wrappedCount > MaxWrappedLines) break;
-                linesToKeep++;
-            }
-            
-            // Drop old lines
-            if (linesToKeep < _lines.Count) {
-                int linesToDrop = _lines.Count - linesToKeep;
-                _lines.RemoveRange(0, linesToDrop);
-                
-                // Rewrap with fewer lines
-                _wrappedLines.Clear();
-                _lineHeights.Clear();
-                foreach (string line in _lines) {
-                    int height = WrapAndAddLine(line, width);
-                    _lineHeights.Add(height);
-                }
-            }
-        }
+        _cachedWrappedLineCount = total;
+        _cachedWidth = width;
+        _cacheValid = true;
     }
 
     protected override bool OnDrawingContent(DrawContext? context) {
@@ -301,38 +395,62 @@ public class LogView : View {
             int width = Viewport.Width;
             int height = Viewport.Height;
 
-            if (height <= 0 || width <= 0) return true;
+            if (height <= 0 || width <= 0 || _lineCount == 0) return true;
 
-            // Rewrap only if width changed or content changed
-            if (_lastWidth != width || _needsRewrap) {
-                WrapLines(width);
-                _lastWidth = width;
-                _needsRewrap = false;
-                
-                // Auto-scroll to bottom after rewrap (inline to avoid lock reentry)
-                if (_autoScroll) {
-                    int maxScrollAfterWrap = Math.Max(0, _wrappedLines.Count - height);
-                    _topLine = maxScrollAfterWrap;
-                }
+            EnsureWrappedLineCountCache(width);
+            
+            int totalWrappedLines = _cachedWrappedLineCount;
+            int maxTopLine = Math.Max(0, totalWrappedLines - height);
+            
+            // If auto-scroll is on, always show the bottom
+            if (_autoScroll) {
+                _topWrappedLine = maxTopLine;
+            } else {
+                // Clamp to valid range
+                _topWrappedLine = Math.Clamp(_topWrappedLine, 0, maxTopLine);
             }
 
-            // Clamp scroll position
-            int maxScroll = Math.Max(0, _wrappedLines.Count - height);
-            _topLine = Math.Clamp(_topLine, 0, maxScroll);
+            int targetLine = _topWrappedLine;
 
-            // Draw visible lines
-            for (int i = 0; i < height; i++) {
-                int lineIndex = _topLine + i;
-                if (lineIndex >= _wrappedLines.Count) break;
+            // Find which source line and sub-line to start from
+            int wrappedCount = 0;
+            int startLineIndex = 0;
+            int startSubLine = 0;
+            
+            for (int i = 0; i < _lineCount; i++) {
+                string line = ReadLineFromFile(i);
+                int lineWraps = GetWrappedLineCount(line, width);
+                if (wrappedCount + lineWraps > targetLine) {
+                    startLineIndex = i;
+                    startSubLine = targetLine - wrappedCount;
+                    break;
+                }
+                wrappedCount += lineWraps;
+            }
 
-                string line = _wrappedLines[lineIndex];
-                Move(0, i);
+            // Render visible lines
+            int y = 0;
+            for (int i = startLineIndex; i < _lineCount && y < height; i++) {
+                string line = ReadLineFromFile(i);
+                int lineWraps = GetWrappedLineCount(line, width);
                 
-                // Draw the line, truncating if necessary
-                if (line.Length > width) {
-                    AddStr(line[..width]);
-                } else {
-                    AddStr(line);
+                int subStart = (i == startLineIndex) ? startSubLine : 0;
+                
+                for (int sub = subStart; sub < lineWraps && y < height; sub++) {
+                    Move(0, y);
+                    
+                    if (string.IsNullOrEmpty(line)) {
+                        // Empty line
+                    } else if (!_wordWrap || line.Length <= width) {
+                        AddStr(line.Length > width ? line[..width] : line);
+                    } else {
+                        int start = sub * width;
+                        int len = Math.Min(width, line.Length - start);
+                        if (len > 0) {
+                            AddStr(line.Substring(start, len));
+                        }
+                    }
+                    y++;
                 }
             }
         }
@@ -342,7 +460,7 @@ public class LogView : View {
 
     public void ScrollUp(int lines = 1) {
         lock (_lock) {
-            _topLine = Math.Max(0, _topLine - lines);
+            _topWrappedLine = Math.Max(0, _topWrappedLine - lines);
             _autoScroll = false;
             SetNeedsDraw();
         }
@@ -350,11 +468,16 @@ public class LogView : View {
 
     public void ScrollDown(int lines = 1) {
         lock (_lock) {
-            int maxScroll = Math.Max(0, _wrappedLines.Count - GetVisibleHeight());
-            _topLine = Math.Min(maxScroll, _topLine + lines);
+            int width = Viewport.Width;
+            if (width <= 0) return;
+            
+            EnsureWrappedLineCountCache(width);
+            int maxTopLine = Math.Max(0, _cachedWrappedLineCount - Viewport.Height);
+            
+            _topWrappedLine = Math.Min(_topWrappedLine + lines, maxTopLine);
             
             // Re-enable auto-scroll if we're at the bottom
-            if (_topLine >= maxScroll - 1) {
+            if (_topWrappedLine >= maxTopLine) {
                 _autoScroll = true;
             }
             
@@ -363,18 +486,16 @@ public class LogView : View {
     }
 
     public void PageUp() {
-        int visibleHeight = Math.Max(1, GetVisibleHeight() - 1);
-        ScrollUp(visibleHeight);
+        ScrollUp(Math.Max(1, Viewport.Height - 1));
     }
 
     public void PageDown() {
-        int visibleHeight = Math.Max(1, GetVisibleHeight() - 1);
-        ScrollDown(visibleHeight);
+        ScrollDown(Math.Max(1, Viewport.Height - 1));
     }
 
     public void ScrollToTop() {
         lock (_lock) {
-            _topLine = 0;
+            _topWrappedLine = 0;
             _autoScroll = false;
             SetNeedsDraw();
         }
@@ -382,9 +503,8 @@ public class LogView : View {
 
     public void ScrollToBottom() {
         lock (_lock) {
-            int maxScroll = Math.Max(0, _wrappedLines.Count - GetVisibleHeight());
-            _topLine = maxScroll;
             _autoScroll = true;
+            // _topWrappedLine will be updated on next draw
             SetNeedsDraw();
         }
     }
@@ -395,16 +515,35 @@ public class LogView : View {
         }
 
         if (mouseEvent.Flags.HasFlag(MouseFlags.WheeledDown)) {
-            ScrollDown();
+            ScrollDown(3);
             return true;
         }
         
         if (mouseEvent.Flags.HasFlag(MouseFlags.WheeledUp)) {
-            ScrollUp();
+            ScrollUp(3);
             return true;
         }
 
         return base.OnMouseEvent(mouseEvent);
     }
-}
 
+    protected override void Dispose(bool disposing) {
+        if (_disposed) return;
+        
+        if (disposing) {
+            lock (_lock) {
+                _logWriter?.Dispose();
+                _indexWriter?.Dispose();
+                _logStream?.Dispose();
+                _indexStream?.Dispose();
+            }
+            
+            // Clean up temp files
+            try { File.Delete(_logFilePath); } catch { /* Ignore cleanup failures */ }
+            try { File.Delete(_indexFilePath); } catch { /* Ignore cleanup failures */ }
+        }
+        
+        _disposed = true;
+        base.Dispose(disposing);
+    }
+}
