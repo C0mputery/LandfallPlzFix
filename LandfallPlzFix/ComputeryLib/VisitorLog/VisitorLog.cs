@@ -13,7 +13,7 @@ namespace ComputeryLib.VisitorLog;
 
 public static class VisitorLog {
     private static readonly string VisitorLogPath = Path.Combine(PersistantDataUtility.PersistentDataPath, "VisitorLog.json");
-    private static Dictionary<string, VisitorInfo> _visitors = new();
+    private static Dictionary<string, VisitorInfo> _visitors = LoadVisitorLogFromFile();
     
     private static Dictionary<string, VisitorInfo> LoadVisitorLogFromFile() {
         if (File.Exists(VisitorLogPath)) {
@@ -79,6 +79,7 @@ public static class VisitorLog {
     }
 
     private static void LogVisitor(TABGPlayerServer player, string steamId, DateTime currentTime) {
+        SyncFromFile();
         if (!_visitors.TryGetValue(player.EpicUserName, out VisitorInfo visitorInfo)) {
             visitorInfo = new VisitorInfo { 
                 FirstSeen = currentTime,
