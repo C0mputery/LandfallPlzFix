@@ -30,6 +30,7 @@ public struct VisitorInfo() {
     public List<DatedString> DisplayNames { get; set; } = [];
     public List<DatedString> SteamIds { get; set; } = [];
     public List<DatedString> PlayfabIds { get; set; } = [];
+    public List<DatedString> UnityIds { get; set; } = [];
     public List<DatedString> IpAddresses { get; set; } = [];
     public DateTime FirstSeen { get; set; }
     public DateTime LastSeen { get; set; }

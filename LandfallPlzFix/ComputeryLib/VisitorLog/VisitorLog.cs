@@ -87,6 +87,7 @@ public static class VisitorLog {
         DatedString.UpdateDatedStringSet(visitorInfo.DisplayNames, player.PlayerName, currentTime);
         DatedString.UpdateDatedStringSet(visitorInfo.SteamIds, steamId, currentTime);
         DatedString.UpdateDatedStringSet(visitorInfo.PlayfabIds, player.PlayFabID, currentTime);
+        DatedString.UpdateDatedStringSet(visitorInfo.UnityIds, player.UnityID, currentTime);
         if (ServerClient.m_Server is EnetServer server) {
             if (server.m_IndexToENetPeerDic.TryGetValue(player.PlayerIndex, out Peer enetPeer)) {
                 DatedString.UpdateDatedStringSet(visitorInfo.IpAddresses, enetPeer.IP, currentTime);
