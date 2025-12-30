@@ -13,7 +13,11 @@ public class ServerFailPatches {
     [HarmonyPatch(typeof(JobifiedUnityTransportServer), nameof(JobifiedUnityTransportServer.StartServer))] // this one is never used to my knowlage
     private static Exception StartServerFinalizer(Exception? __exception) {
         if (__exception == null) { return null!; }
-        Plugin.Logger.LogError(__exception);
+        
+        // When the init fails we need to make sure the server does not try to use the half-initialized server instance.
+        // Note, this does not scale and stuff.
+        ServerClient.m_Server = null!;
+        
         TerminateUtility.TerminateServer("Server failed to start properly. Terminating connection.");
         return __exception;
     }
@@ -45,5 +49,13 @@ public class ServerFailPatches {
     [HarmonyPatch(typeof(ServerClient), nameof(ServerClient.OnApplicationQuit))]
     public static void OnApplicationQuitPostfix() {
         Library.Deinitialize(); // Always deinitialize ENet on application quit rather than on server kill.
+    }
+    
+    [HarmonyFinalizer]
+    [HarmonyPatch(typeof(ServerClient), nameof(ServerClient.Init))]
+    private static Exception InitFinalizer(ServerClient __instance, Exception? __exception) {
+        if (__exception == null) { return null!; }
+        ServerClient.m_Server = null!;
+        return __exception;
     }
 }
