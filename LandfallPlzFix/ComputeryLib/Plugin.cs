@@ -36,12 +36,15 @@ public class Plugin : BaseUnityPlugin {
         }
         
         ApplyPatches();
+
+        MessageLogger.InitializeLogger();
         
         Logger.LogInfo($"Applied patches.");
     }
     
     private static void ApplyPatches() {
         Harmony.PatchAll(typeof(GameSettingsPatch));
+        Harmony.PatchAll(typeof(MessageUtilities));
         Harmony.PatchAll(typeof(ChatMessageCommandPatch));
         Harmony.PatchAll(typeof(WorldUtilities));
         Harmony.PatchAll(typeof(RoomInitRequestCommandPatch));

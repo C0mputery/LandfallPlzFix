@@ -22,32 +22,8 @@ public static class MessageLogger {
         File.AppendAllText(logFilePath, logEntry + Environment.NewLine);
         Logger.LogInfo($"[{displayName}] {logEntry}");
     }
-
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(ThrowChatMessageCommand), nameof(ThrowChatMessageCommand.Run))]
-    private static void ThrowChatMessageCommandPostfix(byte[] data, ServerClient world, byte sender) {
-        TABGPlayerServer player = world.GameRoomReference.FindPlayer(sender);
-        if (player == null) { return; }
-        
-        using MemoryStream memoryStream = new MemoryStream(data, 1, data.Length - 1);
-        using BinaryReader binaryReader = new BinaryReader(memoryStream);
-        byte length = binaryReader.ReadByte();
-        string message = Encoding.Unicode.GetString(binaryReader.ReadBytes(length));
-        
-        LogMessage(player.PlayerName, player.EpicUserName, message, true);
-    }
     
-    [HarmonyPostfix]
-    [HarmonyPatch(typeof(ChatMessageCommand), nameof(ChatMessageCommand.Run))]
-    private static void ChatMessageCommandPrefix(byte[] msgData, ServerClient world, byte sender) {
-        TABGPlayerServer player = world.GameRoomReference.FindPlayer(sender);
-        if (player == null) { return; }
-        
-        using MemoryStream memoryStream = new MemoryStream(msgData, 1, msgData.Length - 1);
-        using BinaryReader binaryReader = new BinaryReader(memoryStream);
-        byte length = binaryReader.ReadByte();
-        string message = Encoding.Unicode.GetString(binaryReader.ReadBytes(length));
-        
-        LogMessage(player.PlayerName, player.EpicUserName, message, false);
+    public static void InitializeLogger() {
+        MessageUtilities.OnChatMessage += (player, message, wasThrown) => { LogMessage(player.PlayerName, player.EpicUserName, message, wasThrown); };
     }
 }

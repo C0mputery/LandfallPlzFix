@@ -8,11 +8,11 @@ using System.Text;
 namespace ComputeryLib.Utilities;
 
 public static class PlayerInteractionUtilities {
-    public static void PrivateMessageOrConsoleLog(string message, TABGPlayerServer? sender, ServerClient world) {
+    public static void PrivateMessageOrConsoleLog(string message, TABGPlayerServer? sender) {
         if (sender == null) { Plugin.Logger.LogInfo(message); }
-        else { PrivateMessage(message, sender, world); }
+        else { PrivateMessage(message, sender); }
     }
-    public static void PrivateMessage(string message, TABGPlayerServer sender, ServerClient world) {
+    public static void PrivateMessage(string message, TABGPlayerServer sender) {
         string[] chunks = SplitMessageIntoChunks(message, 200);
         
         Quaternion rotation = Quaternion.Euler(0, sender.PlayerRotation.y, 0);
@@ -23,7 +23,7 @@ public static class PlayerInteractionUtilities {
         for (int i = 0; i < chunks.Length; i++) {
             string chunk = chunks[i];
             Vector3 currentChatThrowPosition = center + (rightDirection * ((i - (chunks.Length - 1) / 2f) * 2f));
-            ThrowChunk(chunk, currentChatThrowPosition, sender, world);
+            ThrowChunk(chunk, currentChatThrowPosition, sender);
         }
     }
     private static string[] SplitMessageIntoChunks(string message, int maxChunkByteSize) {
@@ -62,7 +62,7 @@ public static class PlayerInteractionUtilities {
 
         return chunks.ToArray();
     }
-    private static void ThrowChunk(string chunk, Vector3 position, TABGPlayerServer sender, ServerClient world) {
+    private static void ThrowChunk(string chunk, Vector3 position, TABGPlayerServer sender) {
         using MemoryStream memoryStream = new MemoryStream();
         using BinaryWriter writer = new BinaryWriter(memoryStream);
         
@@ -79,6 +79,8 @@ public static class PlayerInteractionUtilities {
         writer.Write((byte)chunkLength);
         writer.Write(chunkBytes);
         
-        world.SendMessageToClients(EventCode.ThrowChatMessage, memoryStream.ToArray(), sender.PlayerIndex , true);
+        if (WorldUtilities.TryGetWorld(out ServerClient? world)) {
+            world!.SendMessageToClients(EventCode.ThrowChatMessage, memoryStream.ToArray(), sender.PlayerIndex , true);
+        }
     }
 }

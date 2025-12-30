@@ -17,33 +17,33 @@ public struct ChatCommandContext {
     public ChatCommandHandler Command;
 }
 
-public delegate void ChatCommandHandler(string[] arguments, TABGPlayerServer? sender, ServerClient world);
+public delegate void ChatCommandHandler(string[] arguments, TABGPlayerServer? sender);
 
 public static class ChatCommandManager {
     private static readonly ConfigFile ChatCommandsConfig = new ConfigFile(Path.Combine(Paths.ConfigPath, "ChatCommands.cfg"), true);
     
     private static readonly Dictionary<string, ChatCommandContext> Commands = new();
-    public static bool HandleChatMessage(string message, TABGPlayerServer sender, ServerClient world) {
+    public static bool HandleChatMessage(string message, TABGPlayerServer sender) {
         if (message.Length == 0 || message[0] != '/') { return false; }
         string[] parts = message.ToLower().Substring(1).Split(' ');
         string commandName = parts[0];
         string[] arguments = parts.Skip(1).ToArray();
         
         if (!Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) {
-            PlayerInteractionUtilities.PrivateMessage($"Unknown command: {commandName}, type /help for a list of commands you can use.", sender, world);
+            PlayerInteractionUtilities.PrivateMessage($"Unknown command: {commandName}, type /help for a list of commands you can use.", sender);
             return true;
         }
         
         uint userPermissionLevel = GetUserPermissionLevel(sender);
         if (userPermissionLevel < chatCommandContext.PermissionLevel) {
-            PlayerInteractionUtilities.PrivateMessage($"You do not have permission to use the /{commandName} command.", sender, world);
+            PlayerInteractionUtilities.PrivateMessage($"You do not have permission to use the /{commandName} command.", sender);
             return true;
         }
         
-        try { chatCommandContext.Command(arguments, sender, world); }
+        try { chatCommandContext.Command(arguments, sender); }
         catch (Exception e) {
             Plugin.Logger.LogError($"Error executing command '{commandName}': {e.Message}");
-            PlayerInteractionUtilities.PrivateMessage($"An error occurred while executing the command: {e.Message}", sender, world);
+            PlayerInteractionUtilities.PrivateMessage($"An error occurred while executing the command: {e.Message}", sender);
         }
         
         return true;
@@ -58,7 +58,7 @@ public static class ChatCommandManager {
             Plugin.Logger.LogInfo($"Unknown command: {commandName}, type help for a list of commands you can use."); 
             return;
         }
-        chatCommandContext.Command(arguments, null, WorldUtilities.GetWorld());
+        chatCommandContext.Command(arguments, null);
     }
 
     public static void RegisterCommands() {
@@ -94,7 +94,7 @@ public static class ChatCommandManager {
     }
     
     [ChatCommand("help", "Displays the description of a command or lists all commands you can use.", 0)]
-    public static void HelpCommand(string[] arguments, TABGPlayerServer? sender, ServerClient world) {
+    public static void HelpCommand(string[] arguments, TABGPlayerServer? sender) {
         if (arguments.Length == 0) {
             StringBuilder commandListBuilder = new();
             uint userPermissionLevel = sender != null ? GetUserPermissionLevel(sender) : uint.MaxValue;
@@ -102,12 +102,12 @@ public static class ChatCommandManager {
                 if (userPermissionLevel >= command.Value.PermissionLevel) { commandListBuilder.Append($"{command.Key}, "); }
             }
             string commandList = commandListBuilder.ToString().TrimEnd(',', ' ');
-            PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"Available commands: {commandList}", sender, world);
+            PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"Available commands: {commandList}", sender);
         } 
         else {
             string commandName = arguments[0].ToLower();
-            if (Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) { PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"/{commandName}: {chatCommandContext.Description}", sender, world); } 
-            else { PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"No description found for command: {commandName}", sender, world); }
+            if (Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) { PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"/{commandName}: {chatCommandContext.Description}", sender); } 
+            else { PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"No description found for command: {commandName}", sender); }
         }
     }
 }
