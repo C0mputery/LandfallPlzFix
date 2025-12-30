@@ -15,12 +15,15 @@ public class LogView : View {
     private readonly List<string> _logBuffer = new();
     private readonly Lock _logBufferLock = new();
     private int _maxLines = 10000;
+    private const int MaxLogBufferSize = 10000; // Prevent unbounded buffer growth
+    private const int MaxWrappedLines = 100000; // Prevent unbounded wrapped lines growth
     private int _topLine;
     private bool _autoScroll = true;
     private bool _wordWrap = true;
     private readonly List<string> _wrappedLines = [];
     private int _lastWidth = -1;
     private bool _needsRewrap = true;
+    private long _droppedLineCount; // Track how many lines were dropped
 
     public LogView() {
         CanFocus = true;
@@ -87,10 +90,43 @@ public class LogView : View {
     }
 
     /// <summary>
+    /// Get the current number of wrapped display lines.
+    /// </summary>
+    public int WrappedLineCount {
+        get {
+            lock (_lock) {
+                return _wrappedLines.Count;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the number of lines dropped due to buffer limits.
+    /// </summary>
+    public long DroppedLineCount => _droppedLineCount;
+
+    /// <summary>
+    /// Get the current pending log buffer size.
+    /// </summary>
+    public int PendingLogCount {
+        get {
+            lock (_logBufferLock) {
+                return _logBuffer.Count;
+            }
+        }
+    }
+
+    /// <summary>
     /// Queue a line to be added to the log view (thread-safe).
     /// </summary>
     public void LogLine(string text) {
         lock (_logBufferLock) {
+            // Drop oldest lines if buffer is full to prevent unbounded memory growth
+            if (_logBuffer.Count >= MaxLogBufferSize) {
+                int dropCount = _logBuffer.Count - MaxLogBufferSize + 1;
+                _logBuffer.RemoveRange(0, dropCount);
+                _droppedLineCount += dropCount;
+            }
             _logBuffer.Add(text);
         }
     }
@@ -168,7 +204,15 @@ public class LogView : View {
 
     private void TrimBuffer() {
         int excess = _lines.Count - _maxLines;
-        if (excess <= 0) return;
+        if (excess <= 0) {
+            // Even if line count is OK, check wrapped lines
+            if (_wrappedLines.Count > MaxWrappedLines) {
+                _needsRewrap = true;
+                int linesToDrop = Math.Max(1, _lines.Count / 10); // Drop 10% of lines
+                _lines.RemoveRange(0, linesToDrop);
+            }
+            return;
+        }
 
         if (!_needsRewrap && _lineHeights.Count == _lines.Count) {
             int wrappedToRemove = 0;
@@ -221,6 +265,32 @@ public class LogView : View {
         foreach (string line in _lines) {
             int height = WrapAndAddLine(line, width);
             _lineHeights.Add(height);
+        }
+        
+        // Safety check: if wrapped lines exceed limit, force trim
+        if (_wrappedLines.Count > MaxWrappedLines) {
+            // Calculate how many original lines to keep
+            int wrappedCount = 0;
+            int linesToKeep = 0;
+            for (int i = _lines.Count - 1; i >= 0; i--) {
+                wrappedCount += _lineHeights[i];
+                if (wrappedCount > MaxWrappedLines) break;
+                linesToKeep++;
+            }
+            
+            // Drop old lines
+            if (linesToKeep < _lines.Count) {
+                int linesToDrop = _lines.Count - linesToKeep;
+                _lines.RemoveRange(0, linesToDrop);
+                
+                // Rewrap with fewer lines
+                _wrappedLines.Clear();
+                _lineHeights.Clear();
+                foreach (string line in _lines) {
+                    int height = WrapAndAddLine(line, width);
+                    _lineHeights.Add(height);
+                }
+            }
         }
     }
 
