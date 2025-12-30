@@ -50,12 +50,4 @@ public class ServerFailPatches {
     public static void OnApplicationQuitPostfix() {
         Library.Deinitialize(); // Always deinitialize ENet on application quit rather than on server kill.
     }
-    
-    [HarmonyFinalizer]
-    [HarmonyPatch(typeof(ServerClient), nameof(ServerClient.Init))]
-    private static Exception InitFinalizer(ServerClient __instance, Exception? __exception) {
-        if (__exception == null) { return null!; }
-        ServerClient.m_Server = null!;
-        return __exception;
-    }
 }
