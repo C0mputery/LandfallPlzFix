@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using ComputeryLib.Utilities;
@@ -9,6 +8,11 @@ namespace ComputeryLib.Commands;
 public static class BasicCommands {
     [ChatCommand("start", "Starts the game with default countdown or specified countdown in seconds.", 1)]
     public static void StartCommand(string[] arguments, TABGPlayerServer? sender, ServerClient world) {
+        if (world.GameRoomReference.CurrentGameState != GameState.WaitingForPlayers && world.GameRoomReference.CurrentGameState != GameState.CountDown) {
+            PlayerInteractionUtilities.PrivateMessageOrConsoleLog("Game is already in progress.", sender, world);
+            return;
+        }
+        
         if (arguments.Length < 1) {
             world.GameRoomReference.StartCountDown();
             return;

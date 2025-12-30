@@ -4,6 +4,7 @@ using BepInEx.Logging;
 using ComputeryLib.CLI;
 using ComputeryLib.Commands;
 using ComputeryLib.ConfigImprovements;
+using ComputeryLib.MessageLogging;
 using ComputeryLib.ServerFailFixes;
 using ComputeryLib.Utilities;
 using ComputeryLib.VisitorLog;
@@ -47,6 +48,7 @@ public class Plugin : BaseUnityPlugin {
         Harmony.PatchAll(typeof(ServerFailPatches));
         Harmony.PatchAll(typeof(TerminateUtility));
         Harmony.PatchAll(typeof(TickRateUtility));
+        Harmony.PatchAll(typeof(MessageLogger));
         LoggerImprover.ApplyLoggerPatches();
 
     }

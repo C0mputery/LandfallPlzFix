@@ -33,5 +33,5 @@ public struct VisitorInfo() {
     public List<DatedString> IpAddresses { get; set; } = [];
     public DateTime FirstSeen { get; set; }
     public DateTime LastSeen { get; set; }
-    public uint PermissionLevel { get; set; } = 0;
+    public uint PermissionLevel { get; set; }
 }
