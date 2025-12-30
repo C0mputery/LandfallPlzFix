@@ -21,8 +21,8 @@ public delegate void ChatCommandHandler(string[] arguments, TABGPlayerServer? se
 
 public static class ChatCommandManager {
     private static readonly ConfigFile ChatCommandsConfig = new ConfigFile(Path.Combine(Paths.ConfigPath, "ChatCommands.cfg"), true);
-    
-    private static readonly Dictionary<string, ChatCommandContext> Commands = new();
+
+    public static readonly Dictionary<string, ChatCommandContext> Commands = new();
     public static bool HandleChatMessage(string message, TABGPlayerServer sender) {
         if (message.Length == 0 || message[0] != '/') { return false; }
         string[] parts = message.ToLower().Substring(1).Split(' ');
@@ -30,20 +30,20 @@ public static class ChatCommandManager {
         string[] arguments = parts.Skip(1).ToArray();
         
         if (!Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) {
-            PlayerInteractionUtilities.PrivateMessage($"Unknown command: {commandName}, type /help for a list of commands you can use.", sender);
+            PlayerInteractionUtility.PrivateMessage($"Unknown command: {commandName}, type /help for a list of commands you can use.", sender);
             return true;
         }
         
         uint userPermissionLevel = GetUserPermissionLevel(sender);
         if (userPermissionLevel < chatCommandContext.PermissionLevel) {
-            PlayerInteractionUtilities.PrivateMessage($"You do not have permission to use the /{commandName} command.", sender);
+            PlayerInteractionUtility.PrivateMessage($"You do not have permission to use the /{commandName} command.", sender);
             return true;
         }
         
         try { chatCommandContext.Command(arguments, sender); }
         catch (Exception e) {
             Plugin.Logger.LogError($"Error executing command '{commandName}': {e.Message}");
-            PlayerInteractionUtilities.PrivateMessage($"An error occurred while executing the command: {e.Message}", sender);
+            PlayerInteractionUtility.PrivateMessage($"An error occurred while executing the command: {e.Message}", sender);
         }
         
         return true;
@@ -88,27 +88,9 @@ public static class ChatCommandManager {
             }
         }
     }
-    
-    private static uint GetUserPermissionLevel(TABGPlayerServer player) { 
+
+    public static uint GetUserPermissionLevel(TABGPlayerServer player) { 
         return VisitorLog.VisitorLog.GetPermissionLevel(player.EpicUserName);
-    }
-    
-    [ChatCommand("help", "Displays the description of a command or lists all commands you can use.", 0)]
-    public static void HelpCommand(string[] arguments, TABGPlayerServer? sender) {
-        if (arguments.Length == 0) {
-            StringBuilder commandListBuilder = new();
-            uint userPermissionLevel = sender != null ? GetUserPermissionLevel(sender) : uint.MaxValue;
-            foreach (KeyValuePair<string, ChatCommandContext> command in Commands) {
-                if (userPermissionLevel >= command.Value.PermissionLevel) { commandListBuilder.Append($"{command.Key}, "); }
-            }
-            string commandList = commandListBuilder.ToString().TrimEnd(',', ' ');
-            PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"Available commands: {commandList}", sender);
-        } 
-        else {
-            string commandName = arguments[0].ToLower();
-            if (Commands.TryGetValue(commandName, out ChatCommandContext chatCommandContext)) { PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"/{commandName}: {chatCommandContext.Description}", sender); } 
-            else { PlayerInteractionUtilities.PrivateMessageOrConsoleLog($"No description found for command: {commandName}", sender); }
-        }
     }
 }
 

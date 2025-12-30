@@ -7,7 +7,7 @@ using System.Text;
 
 namespace ComputeryLib.Utilities;
 
-public static class PlayerInteractionUtilities {
+public static class PlayerInteractionUtility {
     public static void PrivateMessageOrConsoleLog(string message, TABGPlayerServer? sender) {
         if (sender == null) { Plugin.Logger.LogInfo(message); }
         else { PrivateMessage(message, sender); }
@@ -79,7 +79,7 @@ public static class PlayerInteractionUtilities {
         writer.Write((byte)chunkLength);
         writer.Write(chunkBytes);
         
-        if (WorldUtilities.TryGetWorld(out ServerClient? world)) {
+        if (WorldUtility.TryGetWorld(out ServerClient? world)) {
             world!.SendMessageToClients(EventCode.ThrowChatMessage, memoryStream.ToArray(), sender.PlayerIndex , true);
         }
     }

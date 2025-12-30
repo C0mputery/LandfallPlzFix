@@ -46,7 +46,7 @@ public class Plugin : BaseUnityPlugin {
         Harmony.PatchAll(typeof(GameSettingsPatch));
         Harmony.PatchAll(typeof(MessageUtilities));
         Harmony.PatchAll(typeof(ChatMessageCommandPatch));
-        Harmony.PatchAll(typeof(WorldUtilities));
+        Harmony.PatchAll(typeof(WorldUtility));
         Harmony.PatchAll(typeof(RoomInitRequestCommandPatch));
         Harmony.PatchAll(typeof(ServerFailPatches));
         Harmony.PatchAll(typeof(TerminateUtility));
