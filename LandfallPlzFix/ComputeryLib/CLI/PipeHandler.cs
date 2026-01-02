@@ -70,9 +70,9 @@ public class PipeHandler : MonoBehaviour {
     public void Update() {
         while (_messageQueue.TryDequeue(out string? message)) { ChatCommandManager.HandleConsoleMessage(message); }
         
-        if (Time.time >= _nextPlayerListUpdate && WorldUtility.TryGetWorld(out ServerClient? world)) {
+        if (Time.time >= _nextPlayerListUpdate && WorldUtility.TryGetWorld(out ServerClient? world) && world!.GameRoomReference != null) {
             _nextPlayerListUpdate = Time.time + 15f;
-            List<TABGPlayerServer> players = world!.GameRoomReference.Players;
+            List<TABGPlayerServer> players = world.GameRoomReference.Players;
             string[] epicUsernames = new string[players.Count];
             for (int index = 0; index < players.Count; index++) {
                 TABGPlayerServer player = players[index];
