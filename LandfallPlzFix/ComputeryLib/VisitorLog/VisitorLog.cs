@@ -38,20 +38,27 @@ public static class VisitorLog {
         SaveVisitorLog();
     }
 
+    public static void Authenticate(Action onSuccess, Action onFailure) {
+        PlayFabClientAPI.ForgetAllCredentials();
+        LoginWithCustomIDRequest loginRequest = new LoginWithCustomIDRequest { CustomId = Guid.NewGuid().ToString(), CreateAccount = true };
+        PlayFabClientAPI.LoginWithCustomID(loginRequest, loginResult => { onSuccess(); }, error => { onFailure(); });
+    }
+    
     public static void LogVisitor(TABGPlayerServer player) {
         DateTime currentTime = DateTime.UtcNow;
         
         if (!PlayFabClientAPI.IsClientLoggedIn()) {
-            LoginWithCustomIDRequest loginRequest = new LoginWithCustomIDRequest { CustomId = Guid.NewGuid().ToString(), CreateAccount = true };
-            PlayFabClientAPI.LoginWithCustomID(loginRequest, 
-                loginResult => { TryToGetSteamFromLeaderboard(player, currentTime); },
-                error => { LogVisitor(player, "Unknown...", currentTime);
+            Authenticate(
+                () => { TryToGetSteamFromPlayFab(player, currentTime); }, 
+                () => { LogVisitor(player, "Unknown...", currentTime);
             });
+            return;
         }
-        else { TryToGetSteamFromLeaderboard(player, currentTime); }
+        
+        TryToGetSteamFromPlayFab(player, currentTime);
     }
 
-    private static void TryToGetSteamFromLeaderboard(TABGPlayerServer player, DateTime currentTime) {
+    private static void TryToGetSteamFromPlayFab(TABGPlayerServer player, DateTime currentTime) {
         GetLeaderboardAroundPlayerRequest getLeaderboardAroundPlayerRequest = new GetLeaderboardAroundPlayerRequest {
             StatisticName = "PlayerMatchLosses",
             MaxResultsCount = 1,
@@ -69,9 +76,15 @@ public static class VisitorLog {
                     return;
                 }
             }
+            
             LogVisitor(player, "Unknown...", currentTime);
         }, error => {
-            LogVisitor(player, "Unknown...", currentTime);
+            if (error.Error != PlayFabErrorCode.EntityTokenExpired && error.Error != PlayFabErrorCode.NotAuthenticated) {
+                LogVisitor(player, "Unknown...", currentTime);
+                return;
+            }
+
+            Authenticate(() => { TryToGetSteamFromPlayFab(player, currentTime); }, () => { LogVisitor(player, "Unknown...", currentTime); });
         });
     }
 
