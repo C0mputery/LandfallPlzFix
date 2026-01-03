@@ -41,9 +41,8 @@ public class Plugin : BaseUnityPlugin {
     private void OnSceneChanged(Scene current, Scene next) {
         Logger.LogInfo($"Scene changed from {current.name} to {next.name}");
         GameObject hazeZone = GameObject.Find("/MapObjects/DS_HazeController/DS_HazeZone");
-        if (hazeZone != null) {
-            DS_HazeZone __instance = hazeZone.GetComponent<DS_HazeZone>();
-            __instance.Context.m_ContextItems[0].m_FogStartDistance = Config.Bind("General", "Fog Start Distance", 0.03f, "Sets the fog start distance.").Value;
-        }
+        if (hazeZone == null) { return; }
+        DS_HazeZone __instance = hazeZone.GetComponent<DS_HazeZone>();
+        __instance.Context.m_ContextItems[0].m_FogStartDistance = Config.Bind("General", "Fog Start Distance", 0.03f, "Sets the fog start distance.").Value;
     }
 }
