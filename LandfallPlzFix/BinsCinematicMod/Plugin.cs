@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Reflection;
-using BepInEx;
+﻿using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 
@@ -13,8 +11,19 @@ public class Plugin : BaseUnityPlugin {
     private void Awake() {
         Logger = base.Logger;
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+        
         Harmony harmony = new Harmony(PluginInfo.PLUGIN_GUID);
-        harmony.PatchAll(typeof(Patches));
+        
+        if (Config.Bind("General", "LOD Patch", true, "Disabled the LOD system.").Value) {
+            harmony.PatchAll(typeof(WilhelmChunkerPatches));
+            Logger.LogInfo("Applied LOD patch.");
+        }
+        
+        if (Config.Bind("General", "Gear Layer Patch", true, "Makes gear always render").Value) {
+            harmony.PatchAll(typeof(CharacterGearHandlerPatches));
+            Logger.LogInfo("Applied Gear Layer patch.");
+        }
+        
         Logger.LogInfo($"Applied patches.");
     }
 }
