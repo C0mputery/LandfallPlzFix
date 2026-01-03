@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection.Emit;
+using DeepSky.Haze;
 using HarmonyLib;
 using UnityEngine;
 
@@ -27,6 +28,32 @@ public static class CharacterGearHandlerPatches {
     [HarmonyPostfix]
     [HarmonyPatch(nameof(CharacterGearHandler.AttachGear), typeof(Gear), typeof(Gear.GearType), typeof(bool))]
     public static void AttachGearPostfix(ref CharacterGearHandler __instance) {
-        foreach (Gear gear in __instance.m_gearObjects.Values) { gear.gameObject.SetLayerRecursively(13, 22); }
+        if (Player.localPlayer != __instance.m_player) { return; }
+        foreach (Gear gear in __instance.m_gearObjects.Values) {
+            gear.gameObject.SetLayerRecursively(13, 22);
+            foreach (GameObject additionalObject in gear.m_additionalObjects) { additionalObject.SetLayerRecursively(13, 22); }
+        }
+    }
+}
+
+public static class OptionsPatches {
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(OptionsButton), nameof(OptionsButton.Init))]
+    public static void InitPrefix(ref OptionsButton __instance) {
+        string name = __instance.transform.name;
+        if (name == "Item_ShadowQuality") {
+            __instance.valueNames = [..__instance.valueNames, "ULTRA"];
+        }
+    }
+    
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(OptionsHolder), nameof(OptionsHolder.ApplyGameClientOptions))]
+    public static void ApplyGameClientOptionsPrefix() {
+        if (OptionsHolder.shadowQuality == 3) {
+            QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
+            QualitySettings.shadows = ShadowQuality.All;
+            QualitySettings.shadowmaskMode = ShadowmaskMode.DistanceShadowmask;
+            QualitySettings.shadowCascades = 8;
+        }
     }
 }

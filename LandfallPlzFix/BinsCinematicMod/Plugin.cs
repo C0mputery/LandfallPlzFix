@@ -1,6 +1,9 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
+using DeepSky.Haze;
 using HarmonyLib;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace BinsCinematicMod;
 
@@ -24,6 +27,23 @@ public class Plugin : BaseUnityPlugin {
             Logger.LogInfo("Applied Gear Layer patch.");
         }
         
+        Config.Bind("General", "Fog Start Distance", 0.03f, "Sets the fog start distance."); // add to log
+        
+        harmony.PatchAll(typeof(OptionsPatches));
+        
         Logger.LogInfo($"Applied patches.");
+    }
+    
+    private void OnEnable() { SceneManager.activeSceneChanged += OnSceneChanged; }
+
+    private void OnDisable() { SceneManager.activeSceneChanged -= OnSceneChanged; }
+
+    private void OnSceneChanged(Scene current, Scene next) {
+        Logger.LogInfo($"Scene changed from {current.name} to {next.name}");
+        GameObject hazeZone = GameObject.Find("/MapObjects/DS_HazeController/DS_HazeZone");
+        if (hazeZone != null) {
+            DS_HazeZone __instance = hazeZone.GetComponent<DS_HazeZone>();
+            __instance.Context.m_ContextItems[0].m_FogStartDistance = Config.Bind("General", "Fog Start Distance", 0.03f, "Sets the fog start distance.").Value;
+        }
     }
 }

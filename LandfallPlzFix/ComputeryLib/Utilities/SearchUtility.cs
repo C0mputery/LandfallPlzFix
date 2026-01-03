@@ -12,13 +12,13 @@ public static class SearchUtility {
     public static bool TryGetPlayerByNameOrID(string searchValue, out TABGPlayerServer? foundPlayer) {
         List<TABGPlayerServer> players = WorldUtility.GetWorld().GameRoomReference.Players;
         foreach (TABGPlayerServer player in players) {
-            if (player.PlayerName != searchValue && player.PlayerIndex.ToString() != searchValue && player.EpicUserName != searchValue) { continue; }
+            if (player.PlayerName.ToLower() != searchValue.ToLower() && player.PlayerIndex.ToString() != searchValue && player.EpicUserName != searchValue) { continue; }
             foundPlayer = player;
             return true;
         }
 
-        string[] playerNames = players.Select(p => p.PlayerName).ToArray();
-        int closestMatchIndex = GetClosestMatch(searchValue, playerNames);
+        string[] playerNames = players.Select(p => p.PlayerName.ToLower()).ToArray();
+        int closestMatchIndex = GetClosestMatch(searchValue.ToLower(), playerNames);
         if (closestMatchIndex != -1) {
             foundPlayer = players[closestMatchIndex];
             return true;
