@@ -57,3 +57,17 @@ public static class OptionsPatches {
         }
     }
 }
+
+public static class TimeOfDayPatch {
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(DayAndNightCycle), nameof(DayAndNightCycle.Update))]
+    public static bool UpdatePrefix(ref DayAndNightCycle __instance) {
+        bool useOverride = Plugin.Config.Bind("General", "Time of Day Override", false, "If true, the time of day will be overridden to the specified value.").Value;
+        if (!useOverride) { return true; }
+        float overrideTime = Plugin.Config.Bind("General", "Time of Day Value", 0.5f, "The time of day value to override is a value 0 - 1").Value;
+        overrideTime = Mathf.Clamp(overrideTime, 0f, 1f);
+        __instance.timeOfDay = overrideTime;
+        __instance.CheckTwoClosestFrames();
+        return false;
+    }
+}
