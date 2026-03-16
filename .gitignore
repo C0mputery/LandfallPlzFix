@@ -1,3 +1,5 @@
 Client/
+ClientDecompile/
 Server/
+ServerDecompile/
 /*.lnk
