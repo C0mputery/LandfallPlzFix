@@ -53,7 +53,6 @@ public class Plugin : BaseUnityPlugin {
         Harmony.PatchAll(typeof(TickRateUtility));
         Harmony.PatchAll(typeof(MessageLogger));
         LoggerImprover.ApplyLoggerPatches();
-
     }
 
     private void Start() { ChatCommandManager.RegisterCommands(); }
