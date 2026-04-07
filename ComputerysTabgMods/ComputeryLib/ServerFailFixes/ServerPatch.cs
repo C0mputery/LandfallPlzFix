@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
 using ComputeryLib.Utilities;
 using ENet;
 using HarmonyLib;
@@ -49,5 +52,44 @@ public class ServerFailPatches {
     [HarmonyPatch(typeof(ServerClient), nameof(ServerClient.OnApplicationQuit))]
     public static void OnApplicationQuitPostfix() {
         Library.Deinitialize(); // Always deinitialize ENet on application quit rather than on server kill.
+    }
+    
+    /// <summary>
+    /// ALRIGHT LANDFALL NEVER CHECKS IF THEY ARE GETTING A PLAYER FROM THE ACTUAL PLAYER OR ANOTHER PERSON CAUSING QUANTUM ENTANGLING
+    /// at least I think this fixes quantum entanging 
+    /// </summary>
+    /// <param name="instructions"></param>
+    /// <returns></returns>
+    [HarmonyTranspiler]
+    [HarmonyPatch(typeof(ServerClient), nameof(ServerClient.HandleNetorkEvent))]
+    public static IEnumerable<CodeInstruction> FixRun(IEnumerable<CodeInstruction> instructions) {
+        CodeMatcher matcher = new CodeMatcher(instructions);
+
+        Type nestedType = typeof(ServerClient).GetNestedType("<>c__DisplayClass84_0", BindingFlags.NonPublic);
+        FieldInfo sender = AccessTools.Field(nestedType, "sender");
+
+        matcher.MatchForward(false,
+            new CodeMatch(OpCodes.Ldloc_0),
+            new CodeMatch(OpCodes.Ldfld, AccessTools.Field(typeof(ServerClient).GetNestedType("<>c__DisplayClass84_0", BindingFlags.NonPublic), "serverData")),
+            new CodeMatch(OpCodes.Ldarg_0),
+            new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(PlayerUpdateCommand), "Run"))
+        );
+
+        matcher.Advance(3);
+        matcher.InsertAndAdvance(
+            new CodeInstruction(OpCodes.Ldloc_0),
+            new CodeInstruction(OpCodes.Ldfld, sender)
+        );
+        matcher.Set(OpCodes.Call, AccessTools.Method(typeof(Plugin), nameof(Run), [typeof(byte[]), typeof(ServerClient), typeof(byte)]));
+
+        return matcher.InstructionEnumeration();
+    }
+
+    public static void Run(byte[] msgData, ServerClient world, byte sender) {
+        if (msgData[0] != sender) {
+            Plugin.Logger.LogError($"Received PlayerUpdateCommand from sender {sender}, but expected {msgData[0]}. Ignoring.");
+            return;
+        }
+        PlayerUpdateCommand.Run(msgData, world);
     }
 }

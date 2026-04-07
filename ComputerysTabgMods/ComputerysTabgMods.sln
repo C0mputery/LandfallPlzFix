@@ -26,6 +26,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SteamworksEnforcer", "Steam
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComputerysBetterShop", "ComputerysBetterShop\ComputerysBetterShop.csproj", "{F2EDD399-61CA-47FC-A64A-CE26A7BA3267}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DualRotorHelicoptersConfusingMod", "DualRotorHelicoptersConfusingMod\DualRotorHelicoptersConfusingMod.csproj", "{88B1F20B-7198-4FD8-8E7E-9FA830C38AF2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -64,6 +66,10 @@ Global
 		{F2EDD399-61CA-47FC-A64A-CE26A7BA3267}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F2EDD399-61CA-47FC-A64A-CE26A7BA3267}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F2EDD399-61CA-47FC-A64A-CE26A7BA3267}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88B1F20B-7198-4FD8-8E7E-9FA830C38AF2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88B1F20B-7198-4FD8-8E7E-9FA830C38AF2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88B1F20B-7198-4FD8-8E7E-9FA830C38AF2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88B1F20B-7198-4FD8-8E7E-9FA830C38AF2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{3BEBFE2C-E570-47CE-BC42-86EDD3AF40FA} = {53FA0A7A-2073-4885-A626-4C2A8A5F31D8}
