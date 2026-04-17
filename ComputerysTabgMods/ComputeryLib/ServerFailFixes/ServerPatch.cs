@@ -80,7 +80,7 @@ public class ServerFailPatches {
             new CodeInstruction(OpCodes.Ldloc_0),
             new CodeInstruction(OpCodes.Ldfld, sender)
         );
-        matcher.Set(OpCodes.Call, AccessTools.Method(typeof(Plugin), nameof(Run), [typeof(byte[]), typeof(ServerClient), typeof(byte)]));
+        matcher.Set(OpCodes.Call, AccessTools.Method(typeof(ServerFailPatches), nameof(Run), [typeof(byte[]), typeof(ServerClient), typeof(byte)]));
 
         return matcher.InstructionEnumeration();
     }
